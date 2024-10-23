@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:tambal/pages/forgot_password.dart';
+import 'package:tambal/pages/main_dashboard.dart';
 import 'pages/splash_screen.dart';
 import 'pages/welcome_page.dart';
 import 'pages/login.dart';
 import 'pages/signup.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   runApp(const MyApp());
 }
 
@@ -44,6 +49,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/signup': (context) => const SignupPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
+        '/main-dashboard': (context) => const MainDashboard(),
       },
     );
   }

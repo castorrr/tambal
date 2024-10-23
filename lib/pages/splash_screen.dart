@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:async';
-import 'package:logger/logger.dart';
 import 'welcome_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -14,7 +12,6 @@ class SplashScreen extends StatefulWidget {
 class SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   bool _visible = false;
-  final Logger _logger = Logger();
 
   @override
   void initState() {
@@ -41,14 +38,6 @@ class SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    const String assetName = 'assets/images/google_icon.svg';
-    final Widget svg = SvgPicture.asset(
-      assetName,
-      semanticsLabel: 'Acme Logo',
-    );
-
-    _logger.i('Building SplashScreen with SVG: $assetName');
-
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
@@ -58,7 +47,6 @@ class SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              svg,
               const SizedBox(height: 20),
               Text(
                 'TAMBAL-PD',
