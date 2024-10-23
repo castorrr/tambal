@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "1091852381639",
+    "firebase_url": "https://tambal-pd-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "tambal-pd",
+    "storage_bucket": "tambal-pd.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1091852381639:android:e6276d40335ad936cbfde2",
+        "android_client_info": {
+          "package_name": "com.example.tambal"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1091852381639-eijn83vj0kksc78l4gumuiftj1vm5r16.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbvy12VqOlrALo1lR0za2AMJIw5aoIAy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1091852381639-eijn83vj0kksc78l4gumuiftj1vm5r16.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1091852381639:android:6a890296f8f9db56cbfde2",
+        "android_client_info": {
+          "package_name": "com.example.tambal_pd"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1091852381639-eijn83vj0kksc78l4gumuiftj1vm5r16.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbvy12VqOlrALo1lR0za2AMJIw5aoIAy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1091852381639-eijn83vj0kksc78l4gumuiftj1vm5r16.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1091852381639:android:847ea873a36253d0cbfde2",
+        "android_client_info": {
+          "package_name": "com.example.tambalpdv2"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1091852381639-eijn83vj0kksc78l4gumuiftj1vm5r16.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbvy12VqOlrALo1lR0za2AMJIw5aoIAy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1091852381639-eijn83vj0kksc78l4gumuiftj1vm5r16.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
