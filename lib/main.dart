@@ -7,6 +7,7 @@ import 'package:tambal/pages/auth/login.dart';
 import 'package:tambal/pages/auth/signup.dart';
 import 'package:tambal/pages/dashboard/tabs/medicine_page.dart';
 import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
+import 'package:tambal/pages/dashboard/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart'; // Import provider
 import 'package:tambal/providers/auth_provider.dart'; // Import the AuthProvider
@@ -71,6 +72,7 @@ class MyApp extends StatelessWidget {
           '/main-dashboard': (context) => const MainDashboard(),
           '/medicine-page': (context) => const MedicinePage(),
           '/patients-page': (context) => const PatientsPage(),
+          '/profile-page': (context) => const ProfilePage(),
         },
       ),
     );
