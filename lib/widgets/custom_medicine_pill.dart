@@ -1,4 +1,3 @@
-// lib/custom_medicine_pill.dart
 import 'package:flutter/material.dart';
 
 class MedicineSlot extends StatelessWidget {
@@ -23,11 +22,18 @@ class MedicineSlot extends StatelessWidget {
       decoration: BoxDecoration(
         color: isSelected ? const Color(0xFF3A86FF) : const Color(0xFFE7F1FD),
         borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1), // Shadow color
+            spreadRadius: 2,
+            blurRadius: 6,
+            offset: const Offset(0, 3), // Shadow position
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Slot number
+          // Slot number (left side)
           CircleAvatar(
             radius: 20,
             backgroundColor: isSelected ? Colors.white : Colors.white70,
@@ -39,7 +45,19 @@ class MedicineSlot extends StatelessWidget {
               ),
             ),
           ),
-          // Medicine name and type
+
+          const SizedBox(width: 12), // Spacing between avatar and line
+
+          // Vertical Divider (line after the slot number)
+          Container(
+            width: 1, // Thin vertical line
+            height: 40, // Adjust height of the line to match content
+            color: isSelected ? Colors.white : Colors.grey, // Line color
+          ),
+
+          const SizedBox(width: 12), // Spacing between line and text
+
+          // Medicine name and type (center)
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -63,7 +81,19 @@ class MedicineSlot extends StatelessWidget {
               ],
             ),
           ),
-          // Placeholder for other icons or text (optional)
+
+          const SizedBox(width: 12), // Spacing between text and line
+
+          // Vertical Divider (line before the medicine type)
+          Container(
+            width: 1, // Thin vertical line
+            height: 40, // Adjust height of the line to match content
+            color: isSelected ? Colors.white : Colors.grey, // Line color
+          ),
+
+          const SizedBox(width: 12), // Spacing between line and icon
+
+          // Placeholder for other icons or text (right side)
           Icon(
             Icons.medication_liquid_rounded,
             color: isSelected ? Colors.white : Colors.grey,

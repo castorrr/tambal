@@ -20,7 +20,7 @@ class MedicineSlotSection extends StatelessWidget {
                 'Medicine Slot',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                   color: Theme.of(context).primaryColor,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Padding(
@@ -65,9 +65,7 @@ class MedicineSlotSection extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 20),
-        const SizedBox(height: 80), // Added space to avoid overflow
+        ),// Added space to avoid overflow
       ],
     );
   }

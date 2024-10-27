@@ -1,6 +1,8 @@
+// File: auth_service.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:tambal/models/users.dart'; // Import the UserModel
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -37,7 +39,26 @@ class AuthService {
       );
 
       final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      return userCredential.user;
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        final DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+        // If the user document doesn't exist, store the user's details in Firestore
+        if (!userDoc.exists) {
+          final UserModel newUser = UserModel(
+            uid: user.uid,
+            name: user.displayName ?? 'No Name',
+            email: user.email!,
+            profilePicture: user.photoURL,
+            createdAt: DateTime.now(),
+          );
+
+          await _firestore.collection('users').doc(newUser.uid).set(newUser.toMap());
+        }
+      }
+
+      return user;
     } on FirebaseAuthException {
       rethrow; // Pass exceptions to UI to handle
     }
@@ -60,12 +81,15 @@ class AuthService {
 
       // If the user is created successfully, store user data in Firestore
       if (user != null) {
-        await _firestore.collection('users').doc(user.uid).set({
-          'name': name,
-          'username': username,
-          'email': email,
-          'createdAt': Timestamp.now(),
-        });
+        final UserModel newUser = UserModel(
+          uid: user.uid,
+          name: name,
+          email: email,
+          profilePicture: null, // No profile picture for email sign-up
+          createdAt: DateTime.now(),
+        );
+
+        await _firestore.collection('users').doc(newUser.uid).set(newUser.toMap());
       }
 
       return user;
