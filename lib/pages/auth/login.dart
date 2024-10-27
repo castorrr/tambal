@@ -1,63 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:tambal/providers/auth_provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
   @override
-  LoginPageState createState() => LoginPageState(); // No underscore to avoid public/private mismatch
+  LoginPageState createState() => LoginPageState();
 }
 
 class LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  bool _isLoading = false;
-  String _errorMessage = '';
-
-  Future<void> _loginUser() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    try {
-      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-        email: _usernameController.text,
-        password: _passwordController.text,
-      );
-
-      // Check if the widget is still mounted before navigating
-      if (userCredential.user != null && mounted) {
-        Navigator.pushReplacementNamed(context, '/main-dashboard'); // Navigate to main dashboard
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        setState(() {
-          if (e.code == 'user-not-found') {
-            _errorMessage = 'No user found for that email.';
-          } else if (e.code == 'wrong-password') {
-            _errorMessage = 'Wrong password provided.';
-          } else {
-            _errorMessage = 'Error: ${e.message}';
-          }
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: Text(
+          'Login',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -66,11 +37,11 @@ class LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
               const Text(
-                'Login Page',
+                'Log In to Your Account',
                 style: TextStyle(fontSize: 24),
               ),
               const SizedBox(height: 40),
-              // Username Text Field
+              // Email Text Field
               TextField(
                 controller: _usernameController,
                 decoration: InputDecoration(
@@ -94,39 +65,35 @@ class LoginPageState extends State<LoginPage> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Forgot Password
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/forgot-password');
-                  },
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              if (_errorMessage.isNotEmpty)
+              if (authProvider.errorMessage != null)
                 Text(
-                  _errorMessage,
+                  authProvider.errorMessage!,
                   style: const TextStyle(color: Colors.red),
                 ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               // Login Button
               ElevatedButton(
-                onPressed: _isLoading ? null : _loginUser,
+                onPressed: authProvider.isLoading
+                    ? null
+                    : () async {
+                  await authProvider.signIn(
+                    _usernameController.text,
+                    _passwordController.text,
+                  );
+
+                  // Use context.mounted to check if the context is still valid
+                  if (authProvider.user != null && context.mounted) {
+                    Navigator.pushReplacementNamed(
+                        context, '/main-dashboard');
+                  }
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                  textStyle: const TextStyle(fontSize: 16),
+                  textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
-                child: _isLoading
+                child: authProvider.isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Login'),
               ),
@@ -155,19 +122,27 @@ class LoginPageState extends State<LoginPage> {
               const SizedBox(height: 20),
               // Sign in with Google Button (Icon only)
               ElevatedButton(
-                onPressed: () {
-                  // Handle Google login logic here
+                onPressed: authProvider.isLoading
+                    ? null
+                    : () async {
+                  await authProvider.signInWithGoogle();
+
+                  // Use context.mounted to check if the context is still valid
+                  if (authProvider.user != null && context.mounted) {
+                    Navigator.pushReplacementNamed(
+                        context, '/main-dashboard');
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   side: const BorderSide(color: Colors.grey), // Add border
                 ),
                 child: SvgPicture.asset(
                   'assets/images/google_icon.svg',
-                  height: 24,
-                  width: 24,
+                  height: 30,
+                  width: 30,
                 ),
               ),
               const SizedBox(height: 20),
