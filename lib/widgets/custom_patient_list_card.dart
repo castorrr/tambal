@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+
+class CustomPatientListCard extends StatelessWidget {
+  final String name;
+  final String gender;
+  final int age;
+  final String? imageUrl; // Made imageUrl nullable
+
+  const CustomPatientListCard({
+    super.key,
+    required this.name,
+    required this.gender,
+    required this.age,
+    this.imageUrl, // Nullable imageUrl
+  });
+
+  // Function to get initials from the name
+  String getInitials(String name) {
+    List<String> nameParts = name.split(" ");
+    String initials = "";
+    if (nameParts.isNotEmpty) {
+      initials = nameParts[0][0]; // First letter of first name
+      if (nameParts.length > 1) {
+        initials += nameParts[1][0]; // First letter of last name
+      }
+    }
+    return initials.toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, // White background for the card
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.5),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3), // Changes position of shadow
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Profile Image or Initials Section
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CircleAvatar(
+                radius: 30,
+                backgroundColor:
+                    Colors.blue.shade100, // Placeholder background color
+                backgroundImage:
+                    imageUrl != null ? NetworkImage(imageUrl!) : null,
+                child: imageUrl == null // Show initials if no image
+                    ? Text(
+                        getInitials(name),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Name of the patient
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue, // Blue color for the name
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    // Gender and Age Row
+                    Row(
+                      children: [
+                        Text(
+                          'Gender: $gender',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Text(
+                          'Age: $age',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

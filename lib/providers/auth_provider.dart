@@ -1,75 +1,101 @@
-// File: auth_provider.dart
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:tambal/services/auth_service.dart';
+import 'package:tambal/models/users.dart'; // Import your UserModel
+import 'package:tambal/services/auth_service.dart'; // Your AuthService
 
 class AuthProvider with ChangeNotifier {
-  final AuthService _authService = AuthService();
-  User? _user;
-  bool _isLoading = false;
-  String? _errorMessage;
+  final AuthService _authService = AuthService(); // Instance of your AuthService
+  UserModel? _user; // Private UserModel to hold the current user information
+  String? _errorMessage; // Error message for handling authentication errors
+  bool _isLoading = false; // Boolean to track the loading state
 
-  User? get user => _user;
-  bool get isLoading => _isLoading;
+  // Getter to access user info
+  UserModel? get user => _user;
+
+  // Getter to access error message
   String? get errorMessage => _errorMessage;
 
-  // Login with email and password
+  // Getter to check if authentication is in progress
+  bool get isLoading => _isLoading;
+
+  // Sign in with email and password
   Future<void> signIn(String email, String password) async {
-    _setLoading(true);
     try {
+      _isLoading = true; // Start loading
+      _errorMessage = null; // Clear any previous error messages
+      notifyListeners();
+
+      // Fetch user data from AuthService
       _user = await _authService.signInWithEmailAndPassword(email, password);
-      _errorMessage = null;  // Clear error message on success
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message;
+
+      // Handle case where sign-in fails
+      if (_user == null) {
+        _errorMessage = 'Login failed. Please check your credentials.';
+      }
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
     } finally {
-      _setLoading(false);
+      _isLoading = false; // Stop loading
+      notifyListeners(); // Notify UI to reflect changes
     }
-    notifyListeners();  // Notify listeners to rebuild UI
   }
 
-  // Signup
-  Future<void> signUp(String name, String username, String email, String password) async {
-    _setLoading(true);
+  // Sign in with Google
+  Future<void> signInWithGoogle() async {
     try {
+      _isLoading = true; // Start loading
+      _errorMessage = null; // Clear any previous error messages
+      notifyListeners();
+
+      // Fetch user data from AuthService
+      _user = await _authService.signInWithGoogle();
+
+      // Handle case where Google sign-in fails
+      if (_user == null) {
+        _errorMessage = 'Google sign-in failed. Please try again.';
+      }
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
+    } finally {
+      _isLoading = false; // Stop loading
+      notifyListeners(); // Notify UI to reflect changes
+    }
+  }
+
+  // Sign up a new user
+  Future<void> signUp(String name, String username, String email, String password) async {
+    try {
+      _isLoading = true; // Start loading
+      _errorMessage = null; // Clear any previous error messages
+      notifyListeners();
+
+      // Create a new user using the AuthService
       _user = await _authService.signUpUser(
         name: name,
         username: username,
         email: email,
         password: password,
       );
-      _errorMessage = null;  // Clear error message on success
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message;
+
+      // Handle case where sign-up fails
+      if (_user == null) {
+        _errorMessage = 'Sign up failed. Please try again.';
+      }
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
     } finally {
-      _setLoading(false);
+      _isLoading = false; // Stop loading
+      notifyListeners(); // Notify UI to reflect changes
     }
-    notifyListeners();
   }
 
-  // Google Sign-In
-  Future<void> signInWithGoogle() async {
-    _setLoading(true);
-    try {
-      _user = await _authService.signInWithGoogle();
-      _errorMessage = null;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = e.message;
-    } finally {
-      _setLoading(false);
-    }
-    notifyListeners();
-  }
-
-  // Sign out
+  // Sign out the current user
   Future<void> signOut() async {
-    await _authService.signOut();
-    _user = null;
-    notifyListeners();
-  }
-
-  // Set loading state
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();  // Notify listeners to update UI
+    try {
+      await _authService.signOut(); // Sign out via AuthService
+      _user = null; // Clear user information
+      notifyListeners(); // Notify UI to reflect changes
+    } catch (e) {
+      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
+    }
   }
 }

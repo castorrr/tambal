@@ -1,11 +1,11 @@
 // File: users.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
-  final String uid; // User ID
+  final String uid;
   final String name;
   final String email;
-  final String? profilePicture; // Optional field for profile picture URL
+  final String? profilePicture;
+  final String username; // Add username here
   final DateTime createdAt;
 
   UserModel({
@@ -13,27 +13,29 @@ class UserModel {
     required this.name,
     required this.email,
     this.profilePicture,
+    required this.username, // Include username in constructor
     required this.createdAt,
   });
 
-  // Factory constructor to create a UserModel from Firestore document
-  factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
-    return UserModel(
-      uid: uid,
-      name: data['name'] as String,
-      email: data['email'] as String,
-      profilePicture: data['profilePicture'] as String?,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-    );
-  }
-
-  // Method to convert UserModel to a map for saving in Firestore
   Map<String, dynamic> toMap() {
     return {
+      'uid': uid,
       'name': name,
       'email': email,
       'profilePicture': profilePicture,
-      'createdAt': createdAt,
+      'username': username, // Map username
+      'createdAt': createdAt.toIso8601String(),
     };
+  }
+
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      uid: map['uid'],
+      name: map['name'],
+      email: map['email'],
+      profilePicture: map['profilePicture'],
+      username: map['username'], // Map username
+      createdAt: DateTime.parse(map['createdAt']),
+    );
   }
 }
