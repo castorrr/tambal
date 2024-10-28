@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart'; // Import Provider
+// Import your UserModel
 import 'package:tambal/pages/dashboard/profile_page.dart'; // Importing the ProfilePage
+import 'package:tambal/providers/auth_provider.dart'; // Import AuthProvider
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Future<bool?> Function() showLogoutDialog; // Pass in logout dialog method
@@ -11,6 +14,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Access the user data from the AuthProvider
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+
+    // Extract initials from the user's name if photoURL is null
+    String getInitials(String name) {
+      List<String> nameParts = name.split(" ");
+      String initials = "";
+      if (nameParts.isNotEmpty) {
+        initials = nameParts[0][0]; // First letter of the first name
+        if (nameParts.length > 1) {
+          initials += nameParts[1][0]; // First letter of the last name
+        }
+      }
+      return initials.toUpperCase();
+    }
+
     return AppBar(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       leadingWidth: 200, // Adjust the width to prevent overflow
@@ -23,29 +43,34 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               MaterialPageRoute(builder: (context) => const ProfilePage()),
             );
           },
-          child: const Row(
+          child: Row(
             children: [
               // CircleAvatar for the profile picture or initials
               CircleAvatar(
                 backgroundColor: Colors.blue,
                 radius: 24, // Adjust size of the avatar
-                child: Text(
-                  'RV',
-                  style: TextStyle(
+                backgroundImage: user?.profilePicture != null
+                    ? NetworkImage(user!.profilePicture!) // Show profile picture
+                    : null, // Null if no image
+                child: user?.profilePicture == null
+                    ? Text(
+                  getInitials(user?.name ?? 'User'), // Show initials if no profile picture
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                ),
+                )
+                    : null,
               ),
-              SizedBox(width: 8), // Space between avatar and text
+              const SizedBox(width: 8), // Space between avatar and text
               // Flexible Column for Welcome text and Username to avoid overflow
               Flexible(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center, // Center the text vertically
                   crossAxisAlignment: CrossAxisAlignment.start, // Align text to the left
                   children: [
-                    Text(
+                    const Text(
                       'Hi, WelcomeBack',
                       style: TextStyle(
                         fontSize: 12, // Adjust font size for the smaller welcome text
@@ -53,15 +78,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                       overflow: TextOverflow.ellipsis, // Handle overflow gracefully
                     ),
-                    Text(
-                      'Ronerr Villacarlos', // Replace with dynamic user name
-                      style: TextStyle(
-                        fontSize: 14, // Adjust font size for the name
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black, // Set the user name color
-                      ),
-                      overflow: TextOverflow.ellipsis, // Handle overflow gracefully
+                Flexible(
+                  child: Text(
+                    user?.name ?? 'Guest User', // Display the user's name
+                    style: const TextStyle(
+                      fontSize: 14, // Adjust font size for the name
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black, // Set the user name color
                     ),
+                    overflow: TextOverflow.ellipsis, // Handle overflow gracefully
+                    maxLines: 1, // Restrict the text to a single line (if needed)
+                  ),
+                ),
                   ],
                 ),
               ),

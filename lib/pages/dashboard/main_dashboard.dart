@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:tambal/pages/dashboard/tabs/medicine_page.dart';
 import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
-import 'package:tambal/widgets/custom_medicine_card.dart';
+import 'package:tambal/pages/dashboard/tabs/monitor_page.dart'; // Import Monitor Page
 import 'package:tambal/widgets/custom_app_bar.dart'; // Importing custom AppBar
 import 'package:tambal/widgets/custom_recent_patient_list.dart';
+import 'package:tambal/widgets/custom_medicine_card.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -15,10 +16,12 @@ class MainDashboard extends StatefulWidget {
 class MainDashboardState extends State<MainDashboard> {
   int currentIndex = 0;
 
+  // Adding the MonitorPage to the list of pages
   final List<Widget> _pages = [
-    const DashboardPage(), // Dashboard page added here
+    const DashboardPage(),
     const MedicinePage(),
     const PatientsPage(),
+    const MonitorPage(), // Monitor Page added here
   ];
 
   void onTabTapped(int index) {
@@ -91,11 +94,19 @@ class MainDashboardState extends State<MainDashboard> {
         }
       },
       child: Scaffold(
-        appBar: CustomAppBar(showLogoutDialog: _showLogoutDialog), // Use the custom AppBar
+        appBar: CustomAppBar(
+            showLogoutDialog: _showLogoutDialog), // Use the custom AppBar
         body: _pages[currentIndex],
         bottomNavigationBar: BottomNavigationBar(
           onTap: onTabTapped,
           currentIndex: currentIndex,
+          backgroundColor: Colors.blue,
+          // Set a background color to make the bar visible
+          selectedItemColor: Colors.blue,
+          // Color for the selected icon
+          unselectedItemColor: Colors.grey,
+          // Color for unselected icons
+          showUnselectedLabels: true,
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home),
@@ -108,6 +119,10 @@ class MainDashboardState extends State<MainDashboard> {
             BottomNavigationBarItem(
               icon: Icon(Icons.people),
               label: 'Patients',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.monitor),
+              label: 'Monitor',
             ),
           ],
         ),

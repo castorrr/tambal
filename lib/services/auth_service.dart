@@ -6,29 +6,38 @@ import 'package:tambal/models/users.dart'; // Import the UserModel
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Firestore instance for storing user data
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
-  // Sign in with email and password
-  Future<User?> signInWithEmailAndPassword(String email, String password) async {
+  // Sign in with email and password, return UserModel
+  Future<UserModel?> signInWithEmailAndPassword(String email, String password) async {
     try {
       final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      return userCredential.user;
+      final User? user = userCredential.user;
+
+      // Fetch user data from Firestore
+      if (user != null) {
+        final DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          return UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
+        }
+      }
+      return null;
     } on FirebaseAuthException {
-      rethrow; // Throw exceptions for UI to handle
+      rethrow;
     }
   }
 
-  // Google Sign-In
-  Future<User?> signInWithGoogle() async {
+  // Google Sign-In, return UserModel
+  Future<UserModel?> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        return null; // Return null if sign-in was canceled
+        return null;
       }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -44,57 +53,59 @@ class AuthService {
       if (user != null) {
         final DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
 
-        // If the user document doesn't exist, store the user's details in Firestore
         if (!userDoc.exists) {
           final UserModel newUser = UserModel(
             uid: user.uid,
             name: user.displayName ?? 'No Name',
             email: user.email!,
             profilePicture: user.photoURL,
+            username: user.displayName ?? 'No Username',
             createdAt: DateTime.now(),
           );
 
           await _firestore.collection('users').doc(newUser.uid).set(newUser.toMap());
+          return newUser;
+        } else {
+          return UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
         }
       }
 
-      return user;
+      return null;
     } on FirebaseAuthException {
-      rethrow; // Pass exceptions to UI to handle
+      rethrow;
     }
   }
 
-  // Sign up a user with email, password and store additional info in Firestore
-  Future<User?> signUpUser({
+  // Sign up a user and return UserModel
+  Future<UserModel?> signUpUser({
     required String name,
     required String username,
     required String email,
     required String password,
   }) async {
     try {
-      // Create user in Firebase Authentication
       final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       final User? user = userCredential.user;
 
-      // If the user is created successfully, store user data in Firestore
       if (user != null) {
         final UserModel newUser = UserModel(
           uid: user.uid,
           name: name,
           email: email,
-          profilePicture: null, // No profile picture for email sign-up
+          profilePicture: null,
+          username: username,
           createdAt: DateTime.now(),
         );
 
         await _firestore.collection('users').doc(newUser.uid).set(newUser.toMap());
+        return newUser;
       }
-
-      return user;
+      return null;
     } on FirebaseAuthException {
-      rethrow; // Throw exceptions for UI to handle
+      rethrow;
     }
   }
 
