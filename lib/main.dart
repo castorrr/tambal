@@ -1,4 +1,9 @@
+// File: main.dart
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'package:logger/logger.dart';
+
 import 'package:tambal/pages/auth/forgot_password.dart';
 import 'package:tambal/pages/dashboard/main_dashboard.dart';
 import 'package:tambal/pages/splash_screen.dart';
@@ -8,22 +13,20 @@ import 'package:tambal/pages/auth/signup.dart';
 import 'package:tambal/pages/dashboard/tabs/medicine_page.dart';
 import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
 import 'package:tambal/pages/dashboard/profile_page.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart'; // Import provider
-import 'package:tambal/providers/auth_provider.dart'; // Import the AuthProvider
-import 'package:logger/logger.dart'; // Import the logger
 
-final Logger logger = Logger(); // Instantiate logger
+import 'package:tambal/providers/auth_provider.dart'; // AuthProvider
+import 'package:tambal/services/firestore_service.dart'; // FirestoreService
+
+final Logger logger = Logger();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase initialization with error handling
+  // Initialize Firebase with error handling
   try {
     await Firebase.initializeApp();
   } catch (e) {
-    // Use logger instead of print
-    logger.e('Firebase initialization error');
+    logger.e('Firebase initialization error: $e');
   }
 
   runApp(const MyApp());
@@ -34,9 +37,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(  // Use MultiProvider to provide AuthProvider globally
+    return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()), // Auth state provider
+        ChangeNotifierProvider(
+            create: (_) => AuthProvider()), // Auth state provider
+        Provider<FirestoreService>(
+            create: (_) => FirestoreService()), // FirestoreService provider
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

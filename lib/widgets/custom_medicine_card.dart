@@ -1,72 +1,85 @@
-// File: custom_medicine_card.dart
-import 'package:flutter/material.dart';
-import 'package:tambal/widgets/custom_medicine_pill.dart'; // Import your custom MedicineSlot widget
+// File: widgets/custom_medicine_card.dart
 
-class MedicineSlotSection extends StatelessWidget {
-  const MedicineSlotSection({super.key});
+import 'package:flutter/material.dart';
+import 'package:tambal/models/medicine.dart'; // Import the Medicine model
+
+class CustomMedicineCard extends StatelessWidget {
+  final Medicine medicine; // Use the Medicine model
+  final VoidCallback onDispense; // Callback for the "Dispense" button
+  final VoidCallback onEdit; // Callback for the "Edit" button
+
+  const CustomMedicineCard({
+    super.key,
+    required this.medicine,
+    required this.onDispense,
+    required this.onEdit,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        const SizedBox(height: 20),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Text(
-                'Medicine Slot',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: Theme.of(context).primaryColor,
-                  fontWeight: FontWeight.w600,
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      elevation: 4.0,
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // Medicine Name
+            Text(
+              medicine.name,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 8.0),
+
+            // Medicine Type
+            Text(
+              'Purpose: ${medicine.purpose}',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8.0),
+
+            // Description
+            Text(
+              'Description: ${medicine.description}',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8.0),
+
+            // Stock Information
+            Text(
+              'Stock: ${medicine.stock}',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 16.0),
+
+            // Buttons Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                // Dispense Button
+                ElevatedButton(
+                  onPressed: onDispense,
+                  child: const Text('Dispense'),
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.only(right: 10.0),
-                child: Icon(
-                  Icons.medication_rounded, // Medicine icon
-                  color: Colors.grey,
-                  size: 30.0,
+
+                // Edit Button
+                OutlinedButton(
+                  onPressed: onEdit,
+                  child: const Text('Edit'),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        Container(
-          width: MediaQuery.of(context).size.width, // Expands to full screen width
-          padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade100, // Custom background color for the section
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              MedicineSlot(
-                slotNumber: 1,
-                medicineName: 'Biogesic',
-                medicineType: 'Fever',
-                isSelected: false,
-              ),
-              MedicineSlot(
-                slotNumber: 2,
-                medicineName: 'Neozep',
-                medicineType: 'Phlegm',
-                isSelected: true,
-              ),
-              MedicineSlot(
-                slotNumber: 3,
-                medicineName: 'Tiki-Tiki',
-                medicineType: 'Growth',
-                isSelected: false,
-              ),
-            ],
-          ),
-        ),// Added space to avoid overflow
-      ],
+      ),
     );
   }
 }

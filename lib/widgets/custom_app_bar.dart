@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import Provider
-// Import your UserModel
 import 'package:tambal/pages/dashboard/profile_page.dart'; // Importing the ProfilePage
 import 'package:tambal/providers/auth_provider.dart'; // Import AuthProvider
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final Future<bool?> Function() showLogoutDialog; // Pass in logout dialog method
+  final Future<bool?> Function()
+      showLogoutDialog; // Pass in logout dialog method
 
   const CustomAppBar({
     super.key,
@@ -31,6 +31,16 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       return initials.toUpperCase();
     }
 
+    // Function to get the first two names from the user's full name
+    String getFirstTwoNames(String name) {
+      List<String> nameParts = name.split(" ");
+      if (nameParts.length >= 2) {
+        return "${nameParts[0]} ${nameParts[1]}"; // Return the first two names
+      } else {
+        return name; // If only one name exists, return it as is
+      }
+    }
+
     return AppBar(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       leadingWidth: 200, // Adjust the width to prevent overflow
@@ -50,46 +60,56 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 backgroundColor: Colors.blue,
                 radius: 24, // Adjust size of the avatar
                 backgroundImage: user?.profilePicture != null
-                    ? NetworkImage(user!.profilePicture!) // Show profile picture
+                    ? NetworkImage(
+                        user!.profilePicture!) // Show profile picture
                     : null, // Null if no image
                 child: user?.profilePicture == null
                     ? Text(
-                  getInitials(user?.name ?? 'User'), // Show initials if no profile picture
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                )
+                        getInitials(user?.name ??
+                            'User'), // Show initials if no profile picture
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      )
                     : null,
               ),
               const SizedBox(width: 8), // Space between avatar and text
               // Flexible Column for Welcome text and Username to avoid overflow
               Flexible(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center, // Center the text vertically
-                  crossAxisAlignment: CrossAxisAlignment.start, // Align text to the left
+                  mainAxisAlignment:
+                      MainAxisAlignment.center, // Center the text vertically
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start, // Align text to the left
                   children: [
                     const Text(
-                      'Hi, WelcomeBack',
+                      'Hi, Welcome Back',
                       style: TextStyle(
-                        fontSize: 12, // Adjust font size for the smaller welcome text
-                        color: Colors.blue, // Set the welcome text color to blue
+                        fontSize:
+                            12, // Adjust font size for the smaller welcome text
+                        color:
+                            Colors.blue, // Set the welcome text color to blue
                       ),
-                      overflow: TextOverflow.ellipsis, // Handle overflow gracefully
+                      overflow:
+                          TextOverflow.ellipsis, // Handle overflow gracefully
                     ),
-                Flexible(
-                  child: Text(
-                    user?.name ?? 'Guest User', // Display the user's name
-                    style: const TextStyle(
-                      fontSize: 14, // Adjust font size for the name
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black, // Set the user name color
+                    Flexible(
+                      child: Text(
+                        getFirstTwoNames(user?.name ??
+                            'Guest User'), // Display only the first two names
+                        style: const TextStyle(
+                          fontSize: 14, // Adjust font size for the name
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black, // Set the user name color
+                        ),
+                        overflow:
+                            TextOverflow.ellipsis, // Handle overflow gracefully
+                        maxLines:
+                            1, // Restrict the text to a single line (if needed)
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis, // Handle overflow gracefully
-                    maxLines: 1, // Restrict the text to a single line (if needed)
-                  ),
-                ),
                   ],
                 ),
               ),
@@ -140,7 +160,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               if (result == 'Logout') {
                 final bool? shouldLogout = await showLogoutDialog();
                 if (shouldLogout == true && context.mounted) {
-                  Navigator.pushReplacementNamed(context, '/login'); // Redirect to login
+                  Navigator.pushReplacementNamed(
+                      context, '/login'); // Redirect to login
                 }
               }
             },
