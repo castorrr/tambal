@@ -4,14 +4,16 @@ class CustomPatientListCard extends StatelessWidget {
   final String name;
   final String gender;
   final int age;
-  final String? imageUrl; // Made imageUrl nullable
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const CustomPatientListCard({
     super.key,
     required this.name,
     required this.gender,
     required this.age,
-    this.imageUrl, // Nullable imageUrl
+    required this.onEdit,
+    required this.onDelete,
   });
 
   // Function to get initials from the name
@@ -44,71 +46,59 @@ class CustomPatientListCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Row(
-          children: [
-            // Profile Image or Initials Section
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor:
-                    Colors.blue.shade100, // Placeholder background color
-                backgroundImage:
-                    imageUrl != null ? NetworkImage(imageUrl!) : null,
-                child: imageUrl == null // Show initials if no image
-                    ? Text(
-                        getInitials(name),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Name of the patient
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue, // Blue color for the name
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    // Gender and Age Row
-                    Row(
-                      children: [
-                        Text(
-                          'Gender: $gender',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Text(
-                          'Age: $age',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Name of the patient
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue, // Blue color for the name
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+              const SizedBox(height: 5),
+              // Gender and Age Row
+              Row(
+                children: [
+                  Text(
+                    'Gender: $gender',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Text(
+                    'Age: $age',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Edit and Delete Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.blue),
+                    onPressed: onEdit, // Edit action callback
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: onDelete, // Delete action callback
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

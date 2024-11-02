@@ -1,18 +1,120 @@
-// File: medicine_page.dart
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:tambal/models/medicine.dart';
 import 'package:tambal/widgets/custom_medicine_card.dart';
-import 'package:tambal/modals/modal_add_medicine.dart';
+import 'package:tambal/modals/modal_add_edit_medicine.dart';
 import 'package:tambal/services/firestore_service.dart';
+import 'package:tambal/services/dispense_service.dart';
+import '../../../services/realtime_database_service.dart';
 
-class MedicinePage extends StatelessWidget {
+class MedicinePage extends StatefulWidget {
   const MedicinePage({super.key});
 
   @override
+  MedicinePageState createState() => MedicinePageState();
+}
+
+class MedicinePageState extends State<MedicinePage> {
+  final Logger logger = Logger();
+  List<int> availableSlots = [];
+
+  Future<void> _handleDispense(Medicine medicine) async {
+    // Use BuildContext before the async operation
+    if (!mounted) return;
+
+    // Show dialog before the async operation
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        title: Text("Dispensing Medicine"),
+        content: Text("Please wait..."),
+      ),
+    );
+
+    // Perform async operation
+    bool success = false;
+    try {
+      final dispenseService = DispenseService(RealtimeDatabaseService());
+      success = await dispenseService.dispenseMedicine(medicine.slot);
+    } catch (error) {
+      logger.e('Failed to set dispense: $error');
+    }
+
+    // Check if the widget is still mounted and then use BuildContext
+    if (mounted) {
+      // Dismiss the dialog
+      Navigator.of(context).pop();
+
+      // Show appropriate snackbar
+      if (success) {
+        logger.i('Medicine dispensed successfully from slot ${medicine.slot}.');
+        _showSnackBar('Medicine dispensed successfully.');
+      } else {
+        logger.e('Unsuccessful dispensing. Slot ${medicine.slot} reset to 0.');
+        _showSnackBar('Unsuccessful dispensing. Please try again.');
+      }
+    }
+  }
+
+  Future<void> _handleDelete(Medicine medicine) async {
+    // Show confirmation dialog before async operation
+    bool? confirmDelete;
+    if (mounted) {
+      confirmDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text("Delete Medicine"),
+            content: Text("Are you sure you want to delete ${medicine.name}?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text("Delete"),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    // Proceed with deletion only if confirmed and if the widget is still mounted
+    if (confirmDelete == true && mounted) {
+      try {
+        final firestoreService =
+            Provider.of<FirestoreService>(context, listen: false);
+        await firestoreService.deleteMedicine(medicine.id);
+
+        // Check if the widget is still mounted before using BuildContext
+        if (mounted) {
+          logger.i('Medicine ${medicine.name} deleted successfully.');
+          _showSnackBar('Medicine deleted successfully.');
+        }
+      } catch (error) {
+        // Check if the widget is still mounted before using BuildContext
+        if (mounted) {
+          logger.e('Failed to delete medicine: $error');
+          _showSnackBar('Failed to delete medicine. Please try again.');
+        }
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final Logger logger = Logger();
     final firestoreService = Provider.of<FirestoreService>(context);
 
     return Scaffold(
@@ -44,49 +146,37 @@ class MedicinePage extends StatelessWidget {
           }
 
           final List<Medicine> medicines = snapshot.data!;
-
-          // Determine which slots are taken
+          medicines.sort((a, b) => a.slot.compareTo(b.slot));
           List<int> takenSlots =
               medicines.map((medicine) => medicine.slot).toList();
-
-          // Identify available slots (1, 2, 3 are the only valid slots)
-          List<int> availableSlots =
+          availableSlots =
               [1, 2, 3].where((slot) => !takenSlots.contains(slot)).toList();
 
-          return Stack(
-            children: [
-              // Scrollable content
-              ListView(
-                padding: const EdgeInsets.all(16.0),
-                children: medicines.map((medicine) {
-                  return CustomMedicineCard(
-                    medicine: medicine,
-                    onDispense: () {
-                      logger.i('${medicine.name} dispensed');
-                    },
-                    onEdit: () {
-                      logger.i('Edit ${medicine.name}');
-                    },
-                  );
-                }).toList(),
-              ),
-              // Positioned FloatingActionButton
-              Positioned(
-                bottom: 16.0,
-                right: 16.0,
-                child: FloatingActionButton.extended(
-                  onPressed: () {
-                    // Pass the available slots to the modal
-                    showModalAddMedicine(context, availableSlots);
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text("Add Medicine"),
-                  backgroundColor: Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
+          return ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: medicines.map((medicine) {
+              return CustomMedicineCard(
+                medicine: medicine,
+                onDispense: () => _handleDispense(medicine),
+                onEdit: () {
+                  showModalAddOrEditMedicine(context, availableSlots,
+                      medicine: medicine);
+                },
+                onDelete: () => _handleDelete(medicine),
+              );
+            }).toList(),
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          if (mounted) {
+            showModalAddOrEditMedicine(context, availableSlots);
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text("Add Medicine"),
+        backgroundColor: Theme.of(context).primaryColor,
       ),
     );
   }
