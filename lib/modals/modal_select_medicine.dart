@@ -31,7 +31,7 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
             // Find if the medicine is already selected
             var selectedMedicine = tempSelectedMedicines.firstWhere(
               (m) => m['name'] == name && m['slot'] == slot,
-              orElse: () => {},
+              orElse: () => <String, dynamic>{},
             );
 
             bool isSelected = selectedMedicine.isNotEmpty;
@@ -45,12 +45,14 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
                   onChanged: (bool? value) {
                     setState(() {
                       if (value == true) {
+                        // Add the medicine if selected
                         tempSelectedMedicines.add({
                           'slot': slot,
                           'name': name,
                           'quantity': quantity, // Initial quantity set to 1
                         });
                       } else {
+                        // Remove the medicine if unselected
                         tempSelectedMedicines.removeWhere(
                           (m) => m['name'] == name && m['slot'] == slot,
                         );
@@ -60,6 +62,7 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
                 ),
                 if (isSelected)
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       const Text('Quantity:'),
                       IconButton(

@@ -249,13 +249,48 @@ class FirestoreService {
   }
 
   // Method to delete a schedule from Firestore
-  Future<void> deleteSchedule(String scheduleId) async {
+  Future<void> deleteSchedule(String fieldId) async {
     try {
-      await _firestore.collection('schedules').doc(scheduleId).delete();
-      _logger.i(
-          'Schedule with ID $scheduleId deleted successfully from Firestore.');
+      // Query the document based on the 'id' field
+      QuerySnapshot snapshot = await _firestore
+          .collection('schedules')
+          .where('id', isEqualTo: fieldId)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        // If a document is found, delete it using its document ID
+        await _firestore
+            .collection('schedules')
+            .doc(snapshot.docs.first.id)
+            .delete();
+        _logger.i('Schedule with field ID $fieldId deleted successfully.');
+      } else {
+        _logger.w('No schedule found with field ID $fieldId.');
+      }
     } catch (e) {
-      _logger.e('Failed to delete schedule with ID $scheduleId: $e');
+      _logger.e('Failed to delete schedule with field ID $fieldId: $e');
+      throw Exception('Failed to delete schedule with field ID $fieldId: $e');
+    }
+  }
+
+  DocumentReference getScheduleDocument(String id) {
+    return _firestore.collection('schedules').doc(id);
+  }
+
+  Future<bool> documentExists(String path) async {
+    final doc = await _firestore.doc(path).get();
+    return doc.exists;
+  }
+
+  Future<void> updateSchedule(Schedule schedule) async {
+    try {
+      await _firestore
+          .collection('schedules')
+          .doc(schedule.id)
+          .update(schedule.toMap());
+    } catch (e) {
+      _logger.e('Failed to update schedule: $e');
       rethrow;
     }
   }

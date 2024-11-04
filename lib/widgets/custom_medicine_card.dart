@@ -75,20 +75,21 @@ class CustomMedicineCard extends StatelessWidget {
                       child: const Text('Dispense'),
                     ),
 
-                    // Edit Button
-                    OutlinedButton(
-                      onPressed: onEdit,
-                      child: const Text('Edit'),
-                    ),
+                    // Edit and Delete Buttons
+                    Row(
+                      children: [
+                        // Edit Button
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blue),
+                          onPressed: onEdit, // Edit action callback
+                        ),
 
-                    // Delete Button
-                    OutlinedButton(
-                      onPressed: onDelete,
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            Colors.red, // Set the text color to red
-                      ),
-                      child: const Text('Delete'),
+                        // Delete Button
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: onDelete, // Delete action callback
+                        ),
+                      ],
                     ),
                   ],
                 ),

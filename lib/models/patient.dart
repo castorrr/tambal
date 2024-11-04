@@ -4,15 +4,13 @@ class Patient {
   final String id;
   final String name;
   final int age;
-  final String gender;
-  final String? fingerprintData; // Base64-encoded or another format
+  final String gender; // Base64-encoded or another format
 
   Patient({
     required this.id,
     required this.name,
     required this.age,
     required this.gender,
-    required this.fingerprintData,
   });
 
   // Method to convert a Patient object to a map (for Firestore)
@@ -22,7 +20,6 @@ class Patient {
       'name': name,
       'age': age,
       'gender': gender,
-      'fingerprintData': fingerprintData,
     };
   }
 
@@ -33,7 +30,6 @@ class Patient {
       name: map['name'],
       age: map['age'],
       gender: map['gender'],
-      fingerprintData: map['fingerprintData'],
     );
   }
 }

@@ -20,13 +20,13 @@ class Medicine {
   // Factory constructor to create a Medicine object from a map (for fetching from Firebase)
   factory Medicine.fromMap(Map<String, dynamic> data, String documentId) {
     return Medicine(
-        id: documentId,
-        name: data['name'] ?? '',
-        purpose: data['purpose'] ?? '',
-        description: data['description'] ?? '',
-        stock: data['stock'] ?? 0,
-        slot: data['slot'] ?? 0 // Default to 0 if stock is not provided
-        );
+      id: documentId,
+      name: data['name'] ?? '',
+      purpose: data['purpose'] ?? '',
+      description: data['description'] ?? '',
+      stock: data['stock'] ?? 0,
+      slot: data['slot'] ?? 0, // Default to 0 if stock is not provided
+    );
   }
 
   // Method to convert a Medicine object to a map (for saving to Firebase)
