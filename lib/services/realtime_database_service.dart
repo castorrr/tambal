@@ -1,4 +1,3 @@
-// File: services/realtime_database_service.dart
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 
@@ -32,6 +31,55 @@ class RealtimeDatabaseService {
     } catch (error) {
       _logger.e('Failed to get dispense slot: $error');
       return null; // Return null in case of an error
+    }
+  }
+
+  // Method to trigger fingerprint enrollment
+  Future<void> triggerFingerprintEnrollment() async {
+    try {
+      await _databaseRef.child('fingerprintCommand').set({
+        'command': 'enroll',
+        'status': 'processing',
+        'id': '0',
+      });
+      _logger.i('Fingerprint enrollment command sent');
+    } catch (error) {
+      _logger.e('Failed to send fingerprint enrollment command: $error');
+      rethrow;
+    }
+  }
+
+  // Method to listen for the fingerprint ID result
+  void listenForFingerprintID(Function(String id) onResult) {
+    _databaseRef.child('fingerprintCommand/status').onValue.listen((event) {
+      if (event.snapshot.value == 'done') {
+        _databaseRef.child('fingerprintCommand/id').once().then((snapshot) {
+          final String? fingerprintID = snapshot.snapshot.value as String?;
+          if (fingerprintID != null) {
+            onResult(fingerprintID);
+            _logger
+                .i('Fingerprint enrolled successfully with ID: $fingerprintID');
+
+            // Reset the database fields to default values
+            resetFingerprintCommand();
+          }
+        });
+      }
+    });
+  }
+
+  // Method to reset the fingerprint command fields
+  // Method to reset the fingerprint command fields
+  Future<void> resetFingerprintCommand() async {
+    try {
+      await _databaseRef.child('fingerprintCommand').set({
+        'command': 'none',
+        'id': 0,
+        'status': 'idle',
+      });
+      _logger.i('Fingerprint command reset to default values');
+    } catch (error) {
+      _logger.e('Failed to reset fingerprint command: $error');
     }
   }
 }

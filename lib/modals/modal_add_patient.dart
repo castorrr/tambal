@@ -1,4 +1,3 @@
-// File: modals/add_patient_modal.dart
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/patient.dart';
@@ -7,11 +6,18 @@ import 'package:tambal/utils/medicine_helper.dart';
 import 'package:tambal/modals/modal_select_days.dart';
 import 'package:tambal/modals/modal_select_medicine.dart';
 import 'package:tambal/services/firestore_service.dart';
+import 'package:tambal/services/realtime_database_service.dart';
+import 'dart:async';
 
 class AddPatientModal extends StatefulWidget {
   final List<Map<String, String>> availableMedicines;
+  final Patient? patient;
 
-  const AddPatientModal({super.key, required this.availableMedicines});
+  const AddPatientModal({
+    super.key,
+    required this.availableMedicines,
+    this.patient,
+  });
 
   @override
   AddPatientModalState createState() => AddPatientModalState();
@@ -23,35 +29,62 @@ class AddPatientModalState extends State<AddPatientModal> {
   final TextEditingController ageController = TextEditingController();
   final MedicineHelper medicineHelper = MedicineHelper();
   final FirestoreService firestoreService = FirestoreService();
+  final RealtimeDatabaseService realtimeDatabaseService =
+      RealtimeDatabaseService();
   String selectedGender = 'Male';
   List<Map<String, dynamic>> schedules = [];
   List<bool> selectedDays = List.generate(7, (index) => false);
   bool everyDaySelected = false;
+  List<String> fingerprintIDs = []; // List to store fingerprint IDs
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.patient != null) {
+      nameController.text = widget.patient!.name;
+      ageController.text = widget.patient!.age.toString();
+      selectedGender = widget.patient!.gender;
+      _loadSchedules(widget.patient!.id);
+    }
+  }
+
+  Future<void> _loadSchedules(String patientId) async {
+    try {
+      final fetchedSchedules =
+          await firestoreService.getSchedulesForPatient(patientId);
+      setState(() {
+        schedules = fetchedSchedules.map((schedule) {
+          // Populate fingerprintIDs from the first schedule (since they should be the same for all)
+          if (fingerprintIDs.isEmpty && schedule.fingerprintIDs.isNotEmpty) {
+            fingerprintIDs = List<String>.from(schedule.fingerprintIDs);
+          }
+          return schedule.toMap();
+        }).toList();
+      });
+    } catch (e) {
+      logger.e('Failed to load schedules: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Add Patient'),
+      title: Text(widget.patient != null ? 'Edit Patient' : 'Add Patient'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Name Input
             TextField(
               controller: nameController,
               decoration: const InputDecoration(labelText: 'Name'),
             ),
             const SizedBox(height: 10),
-
-            // Age Input
             TextField(
               controller: ageController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Age'),
             ),
             const SizedBox(height: 10),
-
-            // Gender Selection
             DropdownButtonFormField<String>(
               value: selectedGender,
               onChanged: (value) {
@@ -66,8 +99,6 @@ class AddPatientModalState extends State<AddPatientModal> {
               decoration: const InputDecoration(labelText: 'Gender'),
             ),
             const SizedBox(height: 20),
-
-            // List of Schedules
             Column(
               children: schedules.map((schedule) {
                 final index = schedules.indexOf(schedule);
@@ -77,8 +108,18 @@ class AddPatientModalState extends State<AddPatientModal> {
                     title: Text(
                       'Schedule ${index + 1}: ${schedule['days'].join(", ")} at ${schedule['time']}',
                     ),
-                    subtitle: Text(
-                      'Medicines: ${schedule['medicines'].map((m) => "Slot ${m['slot']}: ${m['name']} (x${m['quantity']})").join(", ")}',
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Medicines: ${schedule['medicines'].map((m) => "Slot ${m['slot']}: ${m['name']} (x${m['quantity']})").join(", ")}',
+                        ),
+                        if (fingerprintIDs.isNotEmpty)
+                          Text(
+                            '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                      ],
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
@@ -93,18 +134,21 @@ class AddPatientModalState extends State<AddPatientModal> {
               }).toList(),
             ),
             const SizedBox(height: 10),
-
-            // Button to Add New Schedule
             ElevatedButton(
               onPressed: _addSchedule,
               child: const Text('Add Schedule'),
             ),
             const SizedBox(height: 20),
-
-            // Fingerprint Button (Placeholder)
             ElevatedButton(
               onPressed: _extractFingerprint,
-              child: const Text('Extract Fingerprint'),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.fingerprint),
+                  SizedBox(width: 8),
+                  Text('Extract Fingerprint'),
+                ],
+              ),
             ),
           ],
         ),
@@ -112,7 +156,7 @@ class AddPatientModalState extends State<AddPatientModal> {
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.of(context).pop(); // Close the modal
+            Navigator.of(context).pop();
           },
           child: const Text('Cancel'),
         ),
@@ -128,61 +172,115 @@ class AddPatientModalState extends State<AddPatientModal> {
     final String name = nameController.text;
     final int? age = int.tryParse(ageController.text);
 
-    // Check for valid name and age input
     if (name.isEmpty) {
-      // Show error if name is empty
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid name.')),
       );
       return;
     }
     if (age == null) {
-      // Show error if age is not a valid integer
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid age as a number.')),
       );
       return;
     }
     if (schedules.isEmpty) {
-      // Show error if there are no schedules added
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one schedule.')),
       );
       return;
     }
 
-    // Generate a unique ID for the patient using Firestore
-    final String patientId = firestoreService.generateUniqueId('patients');
-    final patient = Patient(
-      id: patientId,
-      name: name,
-      age: age,
-      gender: selectedGender,
-      fingerprintData: null, // Placeholder for fingerprint data
-    );
-
     try {
-      // Perform asynchronous operations
-      await firestoreService.addPatient(patient);
+      if (widget.patient != null) {
+        // Logic to update existing patient
+        final data = {
+          'name': name,
+          'age': age,
+          'gender': selectedGender,
+        };
+        await firestoreService.updatePatient(widget.patient!.id, data);
 
-      // Save each schedule asynchronously
-      for (var schedule in schedules) {
-        final scheduleData = Schedule(
-          patientId: patient.id,
-          patientName: patient.name,
-          days: List<String>.from(schedule['days']),
-          time: schedule['time'],
-          medicines: List<Map<String, dynamic>>.from(schedule['medicines']),
+        // Fetch existing schedules
+        final existingSchedules =
+            await firestoreService.getSchedulesForPatient(widget.patient!.id);
+        final existingScheduleMap = {
+          for (var schedule in existingSchedules) schedule.id: schedule
+        };
+        final Set<String> updatedScheduleIds = {};
+
+        for (var schedule in schedules) {
+          String? scheduleId = schedule['id'] as String?;
+          if (scheduleId != null &&
+              existingScheduleMap.containsKey(scheduleId)) {
+            final docRef = firestoreService.getScheduleDocument(scheduleId);
+            final docSnapshot = await docRef.get();
+            if (docSnapshot.exists) {
+              final scheduleData = Schedule(
+                id: scheduleId,
+                patientId: widget.patient!.id,
+                patientName: name,
+                days: List<String>.from(schedule['days']),
+                time: schedule['time'],
+                medicines:
+                    List<Map<String, dynamic>>.from(schedule['medicines']),
+                fingerprintIDs: fingerprintIDs, // Use list of fingerprint IDs
+              );
+              await firestoreService.updateSchedule(scheduleData);
+            }
+            updatedScheduleIds.add(scheduleId);
+          } else {
+            scheduleId = firestoreService.generateUniqueId('schedules');
+            final scheduleData = Schedule(
+              id: scheduleId,
+              patientId: widget.patient!.id,
+              patientName: name,
+              days: List<String>.from(schedule['days']),
+              time: schedule['time'],
+              medicines: List<Map<String, dynamic>>.from(schedule['medicines']),
+              fingerprintIDs: fingerprintIDs, // Use list of fingerprint IDs
+            );
+            await firestoreService.addSchedule(scheduleData);
+            updatedScheduleIds.add(scheduleId);
+          }
+        }
+
+        for (var existingSchedule in existingSchedules) {
+          if (!updatedScheduleIds.contains(existingSchedule.id)) {
+            await firestoreService.deleteSchedule(existingSchedule.id);
+          }
+        }
+      } else {
+        // Logic to add new patient
+        final String patientId = firestoreService.generateUniqueId('patients');
+        final patient = Patient(
+          id: patientId,
+          name: name,
+          age: age,
+          gender: selectedGender,
         );
-        await firestoreService.addSchedule(scheduleData);
+        await firestoreService.addPatient(patient);
+
+        for (var schedule in schedules) {
+          final String scheduleId =
+              firestoreService.generateUniqueId('schedules');
+          final scheduleData = Schedule(
+            id: scheduleId,
+            patientId: patient.id,
+            patientName: patient.name,
+            days: List<String>.from(schedule['days']),
+            time: schedule['time'],
+            medicines: List<Map<String, dynamic>>.from(schedule['medicines']),
+            fingerprintIDs: fingerprintIDs, // Use list of fingerprint IDs
+          );
+          await firestoreService.addSchedule(scheduleData);
+        }
       }
 
-      // Use BuildContext synchronously after async operations
       if (!mounted) return;
       logger.i('Patient and schedules saved successfully: $name');
-      Navigator.of(context).pop(); // Close the modal on success
+      Navigator.of(context).pop();
     } catch (e) {
-      // Use BuildContext synchronously before using it
       if (!mounted) return;
       logger.e('Error saving patient and schedules: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -193,7 +291,6 @@ class AddPatientModalState extends State<AddPatientModal> {
   }
 
   void _addSchedule() async {
-    // Open the ModalSelectDays dialog
     await showDialog(
       context: context,
       builder: (context) {
@@ -210,19 +307,16 @@ class AddPatientModalState extends State<AddPatientModal> {
       },
     );
 
-    if (!mounted) return; // Check if the widget is still mounted
+    if (!mounted) return;
     if (selectedDays.every((day) => !day) && !everyDaySelected) return;
 
-    // Open the time picker
     final TimeOfDay? time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (!mounted) return; // Check if the widget is still mounted
-    if (time == null) return; // Early return if time picker is canceled
+    if (!mounted || time == null) return;
 
-    // Open the ModalSelectMedicine dialog
     await showDialog(
       context: context,
       builder: (context) {
@@ -230,12 +324,14 @@ class AddPatientModalState extends State<AddPatientModal> {
           availableMedicines: widget.availableMedicines,
           onMedicinesSelected: (selectedMedicines) {
             if (selectedMedicines.isNotEmpty) {
-              if (!mounted) return; // Check if the widget is still mounted
+              if (!mounted) return;
               setState(() {
                 schedules.add({
+                  'id': null,
                   'days': everyDaySelected ? ['Everyday'] : _getSelectedDays(),
                   'time': time.format(context),
                   'medicines': selectedMedicines,
+                  'fingerprintIDs': [], // Initialize with an empty list
                 });
               });
             }
@@ -263,7 +359,127 @@ class AddPatientModalState extends State<AddPatientModal> {
         .toList();
   }
 
-  void _extractFingerprint() {
-    logger.i('Fingerprint extraction logic to be implemented.');
+  void _extractFingerprint() async {
+    bool fingerprintExtracted = false;
+    Timer? timeoutTimer;
+
+    // Show "Place your fingerprint" dialog with countdown
+    int countdown = 3;
+    _showFingerprintPromptDialog(countdown);
+
+    // Countdown logic
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        countdown--;
+      });
+
+      if (countdown <= 0) {
+        timer.cancel();
+        if (mounted) Navigator.of(context).pop(); // Dismiss the prompt dialog
+        _showLoadingDialog(); // Show the loading dialog for fingerprint extraction
+        _startFingerprintEnrollment(
+            timeoutTimer, fingerprintExtracted); // Start fingerprint enrollment
+      }
+    });
+  }
+
+  void _startFingerprintEnrollment(
+      Timer? timeoutTimer, bool fingerprintExtracted) async {
+    // Set a timeout for 10 seconds
+    timeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (!fingerprintExtracted && mounted) {
+        Navigator.of(context).pop(); // Dismiss loading dialog
+        realtimeDatabaseService.resetFingerprintCommand();
+        logger.e('Failed to extract fingerprint within the timeout period.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Failed to extract fingerprint. Please try again.')),
+        );
+      }
+    });
+
+    try {
+      await realtimeDatabaseService.triggerFingerprintEnrollment();
+
+      // Listen for the fingerprint ID result
+      realtimeDatabaseService.listenForFingerprintID((String id) {
+        if (!mounted || fingerprintExtracted) return; // Ensure `mounted` check
+
+        fingerprintExtracted = true; // Set flag
+        timeoutTimer?.cancel(); // Cancel the timeout timer
+
+        if (mounted) {
+          Navigator.of(context).pop(); // Dismiss loading dialog
+        }
+
+        setState(() {
+          fingerprintIDs.add(id); // Add the new fingerprint ID
+        });
+
+        logger.i('Fingerprint enrolled successfully with ID: $id');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}')),
+          );
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading dialog
+        logger.e('Failed to extract fingerprint: $error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Failed to extract fingerprint. Please try again.')),
+        );
+      }
+    }
+  }
+
+  void _showFingerprintPromptDialog(int countdown) {
+    if (!mounted) return; // Check if mounted before using `context`
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              content: Text(
+                'Place your finger on the scanner to enroll your fingerprint.\nExtracting fingerprint in $countdown...',
+                textAlign: TextAlign.center,
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showLoadingDialog() {
+    if (!mounted) return; // Check if mounted before using `context`
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Extracting fingerprint...'),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

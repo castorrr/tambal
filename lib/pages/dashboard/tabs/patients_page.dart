@@ -60,63 +60,11 @@ class PatientsPage extends StatelessWidget {
                         gender: patient.gender,
                         age: patient.age,
                         onEdit: () {
-                          // Handle edit action
                           _showEditPatientModal(context, patient);
                         },
-                        onDelete: () async {
-                          // Show a confirmation dialog before deleting
-                          bool? confirmDelete = await showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Delete Patient'),
-                                content: const Text(
-                                    'Are you sure you want to delete this patient and all their schedules?'),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
-                                    child: const Text(
-                                      'Delete',
-                                      style: TextStyle(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-
-                          // Proceed with deletion if the user confirmed
-                          if (confirmDelete == true) {
-                            try {
-                              await firestoreService
-                                  .deletePatientAndSchedules(patient.id);
-
-                              // Check if the widget is still mounted before using context
-                              if (!context.mounted) return;
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Patient and associated schedules deleted successfully.'),
-                                ),
-                              );
-                            } catch (e) {
-                              // Check if the widget is still mounted before using context
-                              if (!context.mounted) return;
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Failed to delete patient: $e'),
-                                ),
-                              );
-                            }
-                          }
+                        onDelete: () {
+                          _showDeleteConfirmation(
+                              context, patient.id, firestoreService);
                         },
                       );
                     },
@@ -128,32 +76,8 @@ class PatientsPage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          try {
-            // Fetch the available medicines with slots
-            List<Map<String, dynamic>> fetchedMedicines =
-                await firestoreService.getAvailableMedicinesWithSlots();
-
-            // Convert the data to List<Map<String, String>>
-            List<Map<String, String>> availableMedicines = fetchedMedicines
-                .map((medicine) => {
-                      'slot': medicine['slot'].toString(),
-                      'name': medicine['name'].toString(),
-                    })
-                .toList();
-
-            // Check if the widget is still mounted before using context
-            if (!context.mounted) return;
-
-            _showAddPatientModal(context, availableMedicines);
-          } catch (error) {
-            // Check if the widget is still mounted before using context
-            if (!context.mounted) return;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to load medicines: $error')),
-            );
-          }
+        onPressed: () {
+          _showAddPatientModal(context);
         },
         backgroundColor: Colors.blue,
         tooltip: 'Add Patient',
@@ -162,18 +86,120 @@ class PatientsPage extends StatelessWidget {
     );
   }
 
-  void _showAddPatientModal(
-      BuildContext context, List<Map<String, String>> availableMedicines) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AddPatientModal(availableMedicines: availableMedicines);
-      },
-    );
+  void _showAddPatientModal(BuildContext context) async {
+    try {
+      // Fetch the available medicines with slots before opening the modal
+      final firestoreService =
+          Provider.of<FirestoreService>(context, listen: false);
+      List<Map<String, dynamic>> fetchedMedicines =
+          await firestoreService.getAvailableMedicinesWithSlots();
+
+      List<Map<String, String>> availableMedicines = fetchedMedicines
+          .map((medicine) => {
+                'slot': medicine['slot'].toString(),
+                'name': medicine['name'].toString(),
+              })
+          .toList();
+
+      // Open the modal only after data fetching is complete
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AddPatientModal(availableMedicines: availableMedicines);
+          },
+        );
+      }
+    } catch (error) {
+      // Show error message only if the context is still valid
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load medicines: $error')),
+        );
+      }
+    }
   }
 
-  void _showEditPatientModal(BuildContext context, Patient patient) {
-    // Show modal for editing patient details
-    // You can create and use a separate modal for editing or reuse the AddPatientModal with pre-filled data
+  void _showEditPatientModal(BuildContext context, Patient patient) async {
+    try {
+      // Fetch the available medicines with slots before opening the modal
+      final firestoreService =
+          Provider.of<FirestoreService>(context, listen: false);
+      List<Map<String, dynamic>> fetchedMedicines =
+          await firestoreService.getAvailableMedicinesWithSlots();
+
+      List<Map<String, String>> availableMedicines = fetchedMedicines
+          .map((medicine) => {
+                'slot': medicine['slot'].toString(),
+                'name': medicine['name'].toString(),
+              })
+          .toList();
+
+      // Open the modal only after data fetching is complete
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AddPatientModal(
+              availableMedicines: availableMedicines,
+              patient: patient, // Pass the existing patient data for editing
+            );
+          },
+        );
+      }
+    } catch (error) {
+      // Show error message only if the context is still valid
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load medicines: $error')),
+        );
+      }
+    }
+  }
+
+  void _showDeleteConfirmation(BuildContext context, String patientId,
+      FirestoreService firestoreService) async {
+    bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Patient'),
+          content: const Text(
+              'Are you sure you want to delete this patient and all their schedules?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete == true) {
+      try {
+        await firestoreService.deletePatientAndSchedules(patientId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Patient and associated schedules deleted successfully.')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete patient: $e')),
+          );
+        }
+      }
+    }
   }
 }

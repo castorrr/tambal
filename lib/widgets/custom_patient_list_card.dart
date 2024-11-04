@@ -55,7 +55,7 @@ class CustomPatientListCard extends StatelessWidget {
               Text(
                 name,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.blue, // Blue color for the name
                 ),
