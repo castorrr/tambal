@@ -1,45 +1,27 @@
-// lib/patients_page.dart
 import 'package:flutter/material.dart';
-import 'package:tambal/widgets/custom_patient_list_card.dart'; // Import the CustomPatientListCard widget
+import 'package:provider/provider.dart';
+import 'package:tambal/modals/modal_add_patient.dart';
+import 'package:tambal/services/firestore_service.dart';
+import 'package:tambal/models/patient.dart';
+import 'package:tambal/widgets/custom_patient_list_card.dart';
 
 class PatientsPage extends StatelessWidget {
   const PatientsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Sample patient data
-    final List<Map<String, dynamic>> patients = [
-      {
-        'name': 'Castor Troy U. Ricafort',
-        'gender': 'Female',
-        'age': 49,
-        'imageUrl': null, // Replace with actual URL
-      },
-      {
-        'name': 'Mr. James Retubado',
-        'gender': 'Male',
-        'age': 52,
-        'imageUrl': null, // Replace with actual URL
-      },
-      {
-        'name': 'Mr. Ronerr Villacarlos',
-        'gender': 'Male',
-        'age': 61,
-        'imageUrl': null, // No image URL, initials will be displayed
-      },
-    ];
+    final firestoreService = Provider.of<FirestoreService>(context);
+
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row with "Patients" text and an icon
             Row(
               children: [
-                const Icon(Icons.people,
-                    size: 28, color: Colors.blue), // Patients icon
-                const SizedBox(width: 8), // Space between icon and text
+                const Icon(Icons.people, size: 28, color: Colors.blue),
+                const SizedBox(width: 8),
                 Text(
                   'Patients',
                   style: Theme.of(context).textTheme.headlineLarge?.copyWith(
@@ -49,19 +31,95 @@ class PatientsPage extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16), // Space between title and patient list
-
-            // Expanded widget to allow ListView to take up remaining space
+            const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: patients.length,
-                itemBuilder: (context, index) {
-                  final patient = patients[index];
-                  return CustomPatientListCard(
-                    name: patient['name'],
-                    gender: patient['gender'],
-                    age: patient['age'],
-                    imageUrl: patient['imageUrl'],
+              child: StreamBuilder<List<Patient>>(
+                stream: firestoreService.getPatientsStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error: ${snapshot.error}'),
+                    );
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text('No patients yet.'),
+                    );
+                  }
+
+                  final patients = snapshot.data!;
+                  return ListView.builder(
+                    itemCount: patients.length,
+                    itemBuilder: (context, index) {
+                      final patient = patients[index];
+                      return CustomPatientListCard(
+                        name: patient.name,
+                        gender: patient.gender,
+                        age: patient.age,
+                        onEdit: () {
+                          // Handle edit action
+                          _showEditPatientModal(context, patient);
+                        },
+                        onDelete: () async {
+                          // Show a confirmation dialog before deleting
+                          bool? confirmDelete = await showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text('Delete Patient'),
+                                content: const Text(
+                                    'Are you sure you want to delete this patient and all their schedules?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(true),
+                                    child: const Text(
+                                      'Delete',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+
+                          // Proceed with deletion if the user confirmed
+                          if (confirmDelete == true) {
+                            try {
+                              await firestoreService
+                                  .deletePatientAndSchedules(patient.id);
+
+                              // Check if the widget is still mounted before using context
+                              if (!context.mounted) return;
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Patient and associated schedules deleted successfully.'),
+                                ),
+                              );
+                            } catch (e) {
+                              // Check if the widget is still mounted before using context
+                              if (!context.mounted) return;
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to delete patient: $e'),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      );
+                    },
                   );
                 },
               ),
@@ -70,50 +128,52 @@ class PatientsPage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showBottomSheet(context); // Trigger the bottom sheet on FAB press
+        onPressed: () async {
+          try {
+            // Fetch the available medicines with slots
+            List<Map<String, dynamic>> fetchedMedicines =
+                await firestoreService.getAvailableMedicinesWithSlots();
+
+            // Convert the data to List<Map<String, String>>
+            List<Map<String, String>> availableMedicines = fetchedMedicines
+                .map((medicine) => {
+                      'slot': medicine['slot'].toString(),
+                      'name': medicine['name'].toString(),
+                    })
+                .toList();
+
+            // Check if the widget is still mounted before using context
+            if (!context.mounted) return;
+
+            _showAddPatientModal(context, availableMedicines);
+          } catch (error) {
+            // Check if the widget is still mounted before using context
+            if (!context.mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to load medicines: $error')),
+            );
+          }
         },
         backgroundColor: Colors.blue,
-        tooltip: 'Add or Edit Patient',
+        tooltip: 'Add Patient',
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  // Method to show the bottom sheet with options
-  void _showBottomSheet(BuildContext context) {
-    showModalBottomSheet(
+  void _showAddPatientModal(
+      BuildContext context, List<Map<String, String>> availableMedicines) {
+    showDialog(
       context: context,
-      builder: (BuildContext bc) {
-        return SafeArea(
-          child: Wrap(
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.person_add),
-                title: const Text('Add Patient'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Add Patient selected!')),
-                  );
-                  // Navigate to Add Patient form/page here
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Edit Patient'),
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Edit Patient selected!')),
-                  );
-                  // Navigate to Edit Patient form/page here
-                },
-              ),
-            ],
-          ),
-        );
+      builder: (BuildContext context) {
+        return AddPatientModal(availableMedicines: availableMedicines);
       },
     );
+  }
+
+  void _showEditPatientModal(BuildContext context, Patient patient) {
+    // Show modal for editing patient details
+    // You can create and use a separate modal for editing or reuse the AddPatientModal with pre-filled data
   }
 }

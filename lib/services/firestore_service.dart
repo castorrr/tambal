@@ -2,12 +2,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/medicine.dart';
+import 'package:tambal/models/patient.dart';
+import 'package:tambal/models/schedule.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
 
-  // Method to add medicine to Firestore
+  // ----------------- Medicine Methods -----------------
+
+  // Method to add a new medicine to Firestore
   Future<void> addMedicine({
     required String name,
     required String purpose,
@@ -33,18 +37,42 @@ class FirestoreService {
     }
   }
 
+  // Method to update an existing medicine in Firestore
+  Future<void> updateMedicine({
+    required String id,
+    required String name,
+    required String purpose,
+    required String description,
+    required int stock,
+    required int slot,
+    required String userId,
+  }) async {
+    try {
+      await _firestore.collection('medicine').doc(id).update({
+        'name': name,
+        'purpose': purpose,
+        'description': description,
+        'stock': stock,
+        'slot': slot,
+        'userId': userId,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      _logger.i('Medicine with ID $id updated successfully in Firestore.');
+    } catch (e) {
+      _logger.e('Failed to update medicine with ID $id: $e');
+      rethrow;
+    }
+  }
+
   // Method to fetch medicines as a stream from Firestore
   Stream<List<Medicine>> getMedicines() {
     return _firestore.collection('medicine').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
         try {
-          // Fetch only the fields that are added in addMedicine
           return Medicine(
             id: doc.id,
             name: doc['name'] ?? 'Unknown',
-            // Default to 'Unknown' if name is missing
             purpose: doc['purpose'] ?? 'Unknown',
-            // Use 'purpose' as 'type' if 'type' is not a separate field
             description: doc['description'] ?? 'No description available',
             stock: doc['stock'] ?? 0,
             slot: doc['slot'] ?? 0,
@@ -55,5 +83,180 @@ class FirestoreService {
         }
       }).toList();
     });
+  }
+
+  // Method to delete a medicine from Firestore
+  Future<void> deleteMedicine(String id) async {
+    try {
+      await _firestore.collection('medicine').doc(id).delete();
+      _logger.i('Medicine with ID $id deleted successfully from Firestore.');
+    } catch (e) {
+      _logger.e('Failed to delete medicine with ID $id: $e');
+      rethrow;
+    }
+  }
+
+  // Method to get available medicines with slot, name, and stock
+  Future<List<Map<String, dynamic>>> getAvailableMedicinesWithSlots() async {
+    try {
+      final snapshot = await _firestore.collection('medicine').get();
+      final medicines = snapshot.docs.map((doc) {
+        return {
+          'slot': doc['slot'].toString(),
+          'name': doc['name'] ?? 'Unknown',
+        };
+      }).toList();
+      return medicines;
+    } catch (e) {
+      _logger.e('Failed to fetch available medicines: $e');
+      rethrow;
+    }
+  }
+
+  // Method to get specific medicine details by slot and name
+  Future<Map<String, dynamic>?> getMedicineDetails(
+      int slot, String name) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('medicine')
+          .where('slot', isEqualTo: slot)
+          .where('name', isEqualTo: name)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        var doc = snapshot.docs.first;
+        return {
+          'id': doc.id,
+          'slot': doc['slot'],
+          'name': doc['name'],
+          'stock': doc['stock'],
+        };
+      } else {
+        _logger.w('No medicine found with slot $slot and name $name.');
+        return null;
+      }
+    } catch (e) {
+      _logger.e('Failed to fetch medicine details: $e');
+      return null;
+    }
+  }
+
+  // ----------------- Patient Methods -----------------
+
+  // Method to generate a unique ID for a given collection
+  String generateUniqueId(String collection) {
+    return _firestore.collection(collection).doc().id;
+  }
+
+  // Method to add a new patient to Firestore
+  Future<void> addPatient(Patient patient) async {
+    try {
+      await _firestore
+          .collection('patients')
+          .doc(patient.id)
+          .set(patient.toMap());
+      _logger.i('Patient ${patient.name} added successfully to Firestore.');
+    } catch (e) {
+      _logger.e('Failed to add patient: $e');
+      rethrow;
+    }
+  }
+
+  // Method to get a stream of patients from Firestore
+  Stream<List<Patient>> getPatientsStream() {
+    return _firestore.collection('patients').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Patient.fromMap(doc.data(), doc.id);
+      }).toList();
+    });
+  }
+
+  // Method to delete a patient and all associated schedules
+  Future<void> deletePatientAndSchedules(String patientId) async {
+    try {
+      // Start a batch write
+      WriteBatch batch = _firestore.batch();
+
+      // Delete the patient
+      DocumentReference patientRef =
+          _firestore.collection('patients').doc(patientId);
+      batch.delete(patientRef);
+
+      // Fetch all schedules associated with the patient
+      QuerySnapshot scheduleSnapshot = await _firestore
+          .collection('schedules')
+          .where('patientId', isEqualTo: patientId)
+          .get();
+
+      // Add each schedule deletion to the batch
+      for (var doc in scheduleSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Commit the batch
+      await batch.commit();
+      _logger.i(
+          'Patient with ID $patientId and all associated schedules deleted successfully.');
+    } catch (e) {
+      _logger.e(
+          'Failed to delete patient with ID $patientId and associated schedules: $e');
+      rethrow;
+    }
+  }
+
+  // Method to update a patient's details in Firestore
+  Future<void> updatePatient(
+      String patientId, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('patients').doc(patientId).update(data);
+      _logger.i('Patient with ID $patientId updated successfully.');
+    } catch (e) {
+      _logger.e('Failed to update patient with ID $patientId: $e');
+      rethrow;
+    }
+  }
+
+  // ----------------- Schedule Methods -----------------
+
+  // Method to add a new schedule to Firestore
+  Future<void> addSchedule(Schedule schedule) async {
+    try {
+      await _firestore.collection('schedules').add(schedule.toMap());
+      _logger.i(
+          'Schedule for ${schedule.patientName} added successfully to Firestore.');
+    } catch (e) {
+      _logger.e('Failed to add schedule: $e');
+      rethrow;
+    }
+  }
+
+  // Method to fetch schedules for a specific patient
+  Future<List<Schedule>> getSchedulesForPatient(String patientId) async {
+    try {
+      QuerySnapshot snapshot = await _firestore
+          .collection('schedules')
+          .where('patientId', isEqualTo: patientId)
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return Schedule.fromMap(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      _logger.e('Failed to fetch schedules for patient ID $patientId: $e');
+      rethrow;
+    }
+  }
+
+  // Method to delete a schedule from Firestore
+  Future<void> deleteSchedule(String scheduleId) async {
+    try {
+      await _firestore.collection('schedules').doc(scheduleId).delete();
+      _logger.i(
+          'Schedule with ID $scheduleId deleted successfully from Firestore.');
+    } catch (e) {
+      _logger.e('Failed to delete schedule with ID $scheduleId: $e');
+      rethrow;
+    }
   }
 }
