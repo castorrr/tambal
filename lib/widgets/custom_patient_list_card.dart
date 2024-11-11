@@ -6,6 +6,7 @@ class CustomPatientListCard extends StatelessWidget {
   final int age;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback onDispense;
 
   const CustomPatientListCard({
     super.key,
@@ -14,6 +15,7 @@ class CustomPatientListCard extends StatelessWidget {
     required this.age,
     required this.onEdit,
     required this.onDelete,
+    required this.onDispense,
   });
 
   // Function to get initials from the name
@@ -21,9 +23,9 @@ class CustomPatientListCard extends StatelessWidget {
     List<String> nameParts = name.split(" ");
     String initials = "";
     if (nameParts.isNotEmpty) {
-      initials = nameParts[0][0]; // First letter of first name
+      initials = nameParts[0][0];
       if (nameParts.length > 1) {
-        initials += nameParts[1][0]; // First letter of last name
+        initials += nameParts[1][0];
       }
     }
     return initials.toUpperCase();
@@ -32,68 +34,103 @@ class CustomPatientListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white, // White background for the card
-          borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.5),
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 3), // Changes position of shadow
+              color: Colors.grey.withOpacity(0.3),
+              spreadRadius: 1,
+              blurRadius: 3,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Name of the patient
-              Text(
-                name,
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue, // Blue color for the name
+              // CircleAvatar with initials
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: Colors.blue,
+                child: Text(
+                  getInitials(name),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 5),
-              // Gender and Age Row
-              Row(
+              const SizedBox(width: 10),
+
+              // Name and Details Column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          'Gender: $gender',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Age: $age',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Column with Dispense Button on top and Row of Edit & Delete Buttons
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Gender: $gender',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
+                  TextButton(
+                    onPressed: onDispense,
+                    child: const Text(
+                      "Dispense",
+                      style: TextStyle(
+                          color: Colors.green, fontSize: 14), // Restore size
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  Text(
-                    'Age: $age',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Edit and Delete Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.blue),
-                    onPressed: onEdit, // Edit action callback
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: onDelete, // Delete action callback
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit,
+                            color: Colors.blue, size: 24), // Restore size
+                        onPressed: onEdit,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete,
+                            color: Colors.red, size: 24), // Restore size
+                        onPressed: onDelete,
+                      ),
+                    ],
                   ),
                 ],
               ),

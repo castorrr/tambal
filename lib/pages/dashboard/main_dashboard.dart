@@ -4,7 +4,7 @@ import 'package:tambal/pages/dashboard/tabs/medicine_page.dart';
 import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
 import 'package:tambal/pages/dashboard/tabs/monitor_page.dart'; // Import Monitor Page
 import 'package:tambal/widgets/custom_app_bar.dart'; // Importing custom AppBar
-import 'package:tambal/widgets/custom_recent_patient_list.dart';
+import 'package:tambal/widgets/custom_dashboard_alerts.dart';
 import 'package:tambal/widgets/custom_dashboard_medicine_card.dart';
 
 class MainDashboard extends StatefulWidget {
@@ -68,10 +68,12 @@ class MainDashboardState extends State<MainDashboard> {
       bottomNavigationBar: BottomNavigationBar(
         onTap: onTabTapped,
         currentIndex: currentIndex,
-        backgroundColor:
-            Colors.blue, // Set a background color to make the bar visible
-        selectedItemColor: Colors.blue, // Color for the selected icon
-        unselectedItemColor: Colors.grey, // Color for unselected icons
+        backgroundColor: Colors.blue,
+        // Set a background color to make the bar visible
+        selectedItemColor: Colors.blue,
+        // Color for the selected icon
+        unselectedItemColor: Colors.grey,
+        // Color for unselected icons
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(
@@ -104,13 +106,13 @@ class DashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: const SingleChildScrollView(
+      child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             // Now using the MedicineSlotSection
             MedicineSlotSection(),
-            RecentPatientListWidget(),
+            const AlertListWidget(),
           ],
         ),
       ),
