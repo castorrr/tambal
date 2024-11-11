@@ -4,6 +4,7 @@ class MedicineSlot extends StatelessWidget {
   final int slotNumber;
   final String medicineName;
   final String medicineType;
+  final int stock;
   final bool isSelected;
 
   const MedicineSlot({
@@ -11,6 +12,7 @@ class MedicineSlot extends StatelessWidget {
     required this.slotNumber,
     required this.medicineName,
     required this.medicineType,
+    required this.stock,
     this.isSelected = false,
   });
 
@@ -24,10 +26,10 @@ class MedicineSlot extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1), // Shadow color
+            color: Colors.black.withOpacity(0.1),
             spreadRadius: 2,
             blurRadius: 6,
-            offset: const Offset(0, 3), // Shadow position
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -50,12 +52,12 @@ class MedicineSlot extends StatelessWidget {
 
           // Vertical Divider (line after the slot number)
           Container(
-            width: 1, // Thin vertical line
-            height: 40, // Adjust height of the line to match content
-            color: isSelected ? Colors.white : Colors.grey, // Line color
+            width: 1,
+            height: 40,
+            color: isSelected ? Colors.white : Colors.grey,
           ),
 
-          const SizedBox(width: 12), // Spacing between line and text
+          const SizedBox(width: 16), // Spacing between line and text
 
           // Medicine name and type (center)
           Expanded(
@@ -65,12 +67,12 @@ class MedicineSlot extends StatelessWidget {
                 Text(
                   medicineName,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
                     color: isSelected ? Colors.white : Colors.black,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   medicineType,
                   style: TextStyle(
@@ -84,19 +86,32 @@ class MedicineSlot extends StatelessWidget {
 
           const SizedBox(width: 12), // Spacing between text and line
 
-          // Vertical Divider (line before the medicine type)
+          // Vertical Divider (line before the stock icon and number)
           Container(
-            width: 1, // Thin vertical line
-            height: 40, // Adjust height of the line to match content
-            color: isSelected ? Colors.white : Colors.grey, // Line color
+            width: 1,
+            height: 40,
+            color: isSelected ? Colors.white : Colors.grey,
           ),
 
-          const SizedBox(width: 12), // Spacing between line and icon
+          const SizedBox(
+              width: 24), // Spacing between line and stock icon/number
 
-          // Placeholder for other icons or text (right side)
-          Icon(
-            Icons.medication_liquid_rounded,
-            color: isSelected ? Colors.white : Colors.grey,
+          // Stock icon and number (right side, vertically aligned)
+          Column(
+            children: [
+              Icon(Icons.inventory, // Inventory icon
+                  color: isSelected ? Colors.white : Colors.grey,
+                  size: 18),
+              const SizedBox(height: 4),
+              Text(
+                stock.toString(),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
           ),
         ],
       ),

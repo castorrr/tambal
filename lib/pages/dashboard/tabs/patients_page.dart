@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tambal/main.dart';
 import 'package:tambal/modals/modal_add_patient.dart';
 import 'package:tambal/services/firestore_service.dart';
 import 'package:tambal/models/patient.dart';
@@ -65,6 +66,9 @@ class PatientsPage extends StatelessWidget {
                         onDelete: () {
                           _showDeleteConfirmation(
                               context, patient.id, firestoreService);
+                        },
+                        onDispense: () {
+                          logger.e('Dispensing');
                         },
                       );
                     },

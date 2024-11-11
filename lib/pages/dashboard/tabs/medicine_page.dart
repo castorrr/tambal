@@ -20,10 +20,8 @@ class MedicinePageState extends State<MedicinePage> {
   List<int> availableSlots = [];
 
   Future<void> _handleDispense(Medicine medicine) async {
-    // Use BuildContext before the async operation
     if (!mounted) return;
 
-    // Show dialog before the async operation
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -33,7 +31,6 @@ class MedicinePageState extends State<MedicinePage> {
       ),
     );
 
-    // Perform async operation
     bool success = false;
     try {
       final dispenseService = DispenseService(RealtimeDatabaseService());
@@ -42,12 +39,9 @@ class MedicinePageState extends State<MedicinePage> {
       logger.e('Failed to set dispense: $error');
     }
 
-    // Check if the widget is still mounted and then use BuildContext
     if (mounted) {
-      // Dismiss the dialog
       Navigator.of(context).pop();
 
-      // Show appropriate snackbar
       if (success) {
         logger.i('Medicine dispensed successfully from slot ${medicine.slot}.');
         _showSnackBar('Medicine dispensed successfully.');
@@ -59,7 +53,6 @@ class MedicinePageState extends State<MedicinePage> {
   }
 
   Future<void> _handleDelete(Medicine medicine) async {
-    // Show confirmation dialog before async operation
     bool? confirmDelete;
     if (mounted) {
       confirmDelete = await showDialog<bool>(
@@ -83,20 +76,17 @@ class MedicinePageState extends State<MedicinePage> {
       );
     }
 
-    // Proceed with deletion only if confirmed and if the widget is still mounted
     if (confirmDelete == true && mounted) {
       try {
         final firestoreService =
             Provider.of<FirestoreService>(context, listen: false);
         await firestoreService.deleteMedicine(medicine.id);
 
-        // Check if the widget is still mounted before using BuildContext
         if (mounted) {
           logger.i('Medicine ${medicine.name} deleted successfully.');
           _showSnackBar('Medicine deleted successfully.');
         }
       } catch (error) {
-        // Check if the widget is still mounted before using BuildContext
         if (mounted) {
           logger.e('Failed to delete medicine: $error');
           _showSnackBar('Failed to delete medicine. Please try again.');
@@ -168,15 +158,23 @@ class MedicinePageState extends State<MedicinePage> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          if (mounted) {
-            showModalAddOrEditMedicine(context, availableSlots);
+      floatingActionButton: StreamBuilder<List<Medicine>>(
+        stream: firestoreService.getMedicines(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.length < 3) {
+            return FloatingActionButton.extended(
+              onPressed: () {
+                if (mounted) {
+                  showModalAddOrEditMedicine(context, availableSlots);
+                }
+              },
+              icon: const Icon(Icons.add),
+              label: const Text("Add Medicine"),
+              backgroundColor: Theme.of(context).primaryColor,
+            );
           }
+          return const SizedBox.shrink(); // Hide FAB if condition not met
         },
-        icon: const Icon(Icons.add),
-        label: const Text("Add Medicine"),
-        backgroundColor: Theme.of(context).primaryColor,
       ),
     );
   }
