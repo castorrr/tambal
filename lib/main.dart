@@ -1,4 +1,3 @@
-// File: main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +15,7 @@ import 'package:tambal/pages/dashboard/profile_page.dart';
 
 import 'package:tambal/providers/auth_provider.dart'; // AuthProvider
 import 'package:tambal/services/firestore_service.dart'; // FirestoreService
+import 'package:tambal/services/realtime_database_service.dart'; // RealtimeDatabaseService
 
 final Logger logger = Logger();
 
@@ -43,6 +43,9 @@ class MyApp extends StatelessWidget {
             create: (_) => AuthProvider()), // Auth state provider
         Provider<FirestoreService>(
             create: (_) => FirestoreService()), // FirestoreService provider
+        Provider<RealtimeDatabaseService>(
+            create: (_) =>
+                RealtimeDatabaseService()), // RealtimeDatabaseService provider
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

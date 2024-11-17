@@ -193,7 +193,7 @@ class AddPatientModalState extends State<AddPatientModal> {
 
     try {
       if (widget.patient != null) {
-        // Logic to update existing patient
+        // Update existing patient
         final data = {
           'name': name,
           'age': age,
@@ -201,57 +201,38 @@ class AddPatientModalState extends State<AddPatientModal> {
         };
         await firestoreService.updatePatient(widget.patient!.id, data);
 
-        // Fetch existing schedules
         final existingSchedules =
             await firestoreService.getSchedulesForPatient(widget.patient!.id);
-        final existingScheduleMap = {
-          for (var schedule in existingSchedules) schedule.id: schedule
-        };
-        final Set<String> updatedScheduleIds = {};
+        final updatedScheduleIds = <String>{};
 
-        for (var schedule in schedules) {
-          String? scheduleId = schedule['id'] as String?;
-          if (scheduleId != null &&
-              existingScheduleMap.containsKey(scheduleId)) {
-            final docRef = firestoreService.getScheduleDocument(scheduleId);
-            final docSnapshot = await docRef.get();
-            if (docSnapshot.exists) {
-              final scheduleData = Schedule(
-                id: scheduleId,
-                patientId: widget.patient!.id,
-                patientName: name,
-                days: List<String>.from(schedule['days']),
-                time: schedule['time'],
-                medicines:
-                    List<Map<String, dynamic>>.from(schedule['medicines']),
-                fingerprintIDs: fingerprintIDs, // Use list of fingerprint IDs
-              );
-              await firestoreService.updateSchedule(scheduleData);
-            }
-            updatedScheduleIds.add(scheduleId);
-          } else {
-            scheduleId = firestoreService.generateUniqueId('schedules');
-            final scheduleData = Schedule(
-              id: scheduleId,
-              patientId: widget.patient!.id,
-              patientName: name,
-              days: List<String>.from(schedule['days']),
-              time: schedule['time'],
-              medicines: List<Map<String, dynamic>>.from(schedule['medicines']),
-              fingerprintIDs: fingerprintIDs, // Use list of fingerprint IDs
-            );
-            await firestoreService.addSchedule(scheduleData);
-            updatedScheduleIds.add(scheduleId);
-          }
+        for (final schedule in schedules) {
+          final scheduleId =
+              schedule['id'] ?? firestoreService.generateUniqueId('schedules');
+          final scheduleData = Schedule(
+            id: scheduleId,
+            patientId: widget.patient!.id,
+            patientName: name,
+            days: List<String>.from(schedule['days']),
+            time: schedule['time'],
+            medicines: List<Map<String, dynamic>>.from(schedule['medicines']),
+            fingerprintIDs: fingerprintIDs,
+          );
+
+          await firestoreService.addSchedule(scheduleData);
+          await realtimeDatabaseService
+              .syncSchedule(scheduleData); // Sync to Realtime Database
+          updatedScheduleIds.add(scheduleId);
         }
 
-        for (var existingSchedule in existingSchedules) {
+        for (final existingSchedule in existingSchedules) {
           if (!updatedScheduleIds.contains(existingSchedule.id)) {
             await firestoreService.deleteSchedule(existingSchedule.id);
+            await realtimeDatabaseService.deleteSchedule(
+                existingSchedule.id); // Remove from Realtime Database
           }
         }
       } else {
-        // Logic to add new patient
+        // Add new patient
         final String patientId = firestoreService.generateUniqueId('patients');
         final patient = Patient(
           id: patientId,
@@ -261,7 +242,7 @@ class AddPatientModalState extends State<AddPatientModal> {
         );
         await firestoreService.addPatient(patient);
 
-        for (var schedule in schedules) {
+        for (final schedule in schedules) {
           final String scheduleId =
               firestoreService.generateUniqueId('schedules');
           final scheduleData = Schedule(
@@ -271,9 +252,12 @@ class AddPatientModalState extends State<AddPatientModal> {
             days: List<String>.from(schedule['days']),
             time: schedule['time'],
             medicines: List<Map<String, dynamic>>.from(schedule['medicines']),
-            fingerprintIDs: fingerprintIDs, // Use list of fingerprint IDs
+            fingerprintIDs: fingerprintIDs,
           );
+
           await firestoreService.addSchedule(scheduleData);
+          await realtimeDatabaseService
+              .syncSchedule(scheduleData); // Sync to Realtime Database
         }
       }
 
