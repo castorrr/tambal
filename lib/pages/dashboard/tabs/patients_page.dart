@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:tambal/main.dart';
 import 'package:tambal/modals/modal_add_patient.dart';
 import 'package:tambal/services/firestore_service.dart';
+import 'package:tambal/services/realtime_database_service.dart';
 import 'package:tambal/models/patient.dart';
 import 'package:tambal/widgets/custom_patient_list_card.dart';
 
@@ -12,6 +13,8 @@ class PatientsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firestoreService = Provider.of<FirestoreService>(context);
+    final realtimeDatabaseService =
+        Provider.of<RealtimeDatabaseService>(context, listen: false);
 
     return Scaffold(
       body: Padding(
@@ -64,11 +67,11 @@ class PatientsPage extends StatelessWidget {
                           _showEditPatientModal(context, patient);
                         },
                         onDelete: () {
-                          _showDeleteConfirmation(
-                              context, patient.id, firestoreService);
+                          _showDeleteConfirmation(context, patient.id,
+                              firestoreService, realtimeDatabaseService);
                         },
                         onDispense: () {
-                          logger.e('Dispensing');
+                          logger.i('Dispensing for ${patient.name}');
                         },
                       );
                     },
@@ -161,8 +164,11 @@ class PatientsPage extends StatelessWidget {
     }
   }
 
-  void _showDeleteConfirmation(BuildContext context, String patientId,
-      FirestoreService firestoreService) async {
+  void _showDeleteConfirmation(
+      BuildContext context,
+      String patientId,
+      FirestoreService firestoreService,
+      RealtimeDatabaseService realtimeDatabaseService) async {
     bool? confirmDelete = await showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -189,12 +195,18 @@ class PatientsPage extends StatelessWidget {
 
     if (confirmDelete == true) {
       try {
+        // Delete from Firestore
         await firestoreService.deletePatientAndSchedules(patientId);
+
+        // Delete from Realtime Database
+        await realtimeDatabaseService.deleteSchedulesByPatient(patientId);
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text(
-                    'Patient and associated schedules deleted successfully.')),
+              content: Text(
+                  'Patient and associated schedules deleted successfully.'),
+            ),
           );
         }
       } catch (e) {

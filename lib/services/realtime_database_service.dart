@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
+import 'package:tambal/models/schedule.dart';
 
 class RealtimeDatabaseService {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
@@ -26,11 +27,11 @@ class RealtimeDatabaseService {
         return slot;
       } else {
         _logger.w('Dispense slot does not exist in the database');
-        return null; // Return null if the slot does not exist
+        return null;
       }
     } catch (error) {
       _logger.e('Failed to get dispense slot: $error');
-      return null; // Return null in case of an error
+      return null;
     }
   }
 
@@ -59,8 +60,6 @@ class RealtimeDatabaseService {
             onResult(fingerprintID);
             _logger
                 .i('Fingerprint enrolled successfully with ID: $fingerprintID');
-
-            // Reset the database fields to default values
             resetFingerprintCommand();
           }
         });
@@ -68,7 +67,6 @@ class RealtimeDatabaseService {
     });
   }
 
-  // Method to reset the fingerprint command fields
   // Method to reset the fingerprint command fields
   Future<void> resetFingerprintCommand() async {
     try {
@@ -80,6 +78,64 @@ class RealtimeDatabaseService {
       _logger.i('Fingerprint command reset to default values');
     } catch (error) {
       _logger.e('Failed to reset fingerprint command: $error');
+    }
+  }
+
+  // Method to sync a single schedule to the Realtime Database
+  // Function to sync a schedule to the Realtime Database
+  Future<void> syncSchedule(Schedule schedule) async {
+    try {
+      await _databaseRef
+          .child('schedules/${schedule.id}')
+          .set(schedule.toMap());
+      _logger.i('Schedule ${schedule.id} synced to Realtime Database');
+    } catch (e) {
+      _logger.e('Failed to sync schedule to Realtime Database: $e');
+    }
+  }
+
+  // Function to delete a schedule from the Realtime Database
+  Future<void> deleteSchedule(String scheduleId) async {
+    try {
+      await _databaseRef.child('schedules/$scheduleId').remove();
+      _logger.i('Schedule $scheduleId deleted from Realtime Database');
+    } catch (e) {
+      _logger.e('Failed to delete schedule $scheduleId: $e');
+    }
+  }
+
+  // Function to delete all schedules for a specific patient
+  Future<void> deleteSchedulesByPatient(String patientId) async {
+    try {
+      final schedulesSnapshot = await _databaseRef
+          .child('schedules')
+          .orderByChild('patientId')
+          .equalTo(patientId)
+          .get();
+
+      if (schedulesSnapshot.exists) {
+        for (final child in schedulesSnapshot.children) {
+          await child.ref.remove();
+        }
+      }
+      _logger.i(
+          'All schedules for patient $patientId deleted from Realtime Database');
+    } catch (e) {
+      _logger.e('Failed to delete schedules for patient $patientId: $e');
+    }
+  }
+
+  // Function to sync multiple schedules for a patient
+  Future<void> syncSchedulesForPatient(
+      String patientId, List<Schedule> schedules) async {
+    try {
+      for (final schedule in schedules) {
+        await syncSchedule(schedule);
+      }
+      _logger.i(
+          'All schedules for patient $patientId synced to Realtime Database');
+    } catch (e) {
+      _logger.e('Failed to sync schedules for patient $patientId: $e');
     }
   }
 }
