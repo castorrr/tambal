@@ -17,7 +17,10 @@ import 'package:tambal/providers/auth_provider.dart'; // AuthProvider
 import 'package:tambal/services/firestore_service.dart'; // FirestoreService
 import 'package:tambal/services/realtime_database_service.dart'; // RealtimeDatabaseService
 
+import 'package:tambal/services/notification_service.dart';
+
 final Logger logger = Logger();
+final notificationService = NotificationService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +30,15 @@ void main() async {
     await Firebase.initializeApp();
   } catch (e) {
     logger.e('Firebase initialization error: $e');
+  }
+
+  try {
+    //initialize notification
+    notificationService.initialize();
+    notificationService.startListeningForScheduleUpdates();
+  } catch (e, stackTrace) {
+    logger.e('Error initializing Awesome Notifications: $e',
+        error: e, stackTrace: stackTrace);
   }
 
   runApp(const MyApp());

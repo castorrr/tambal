@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tambal/main.dart';
-import 'package:tambal/modals/modal_add_patient.dart';
 import 'package:tambal/services/firestore_service.dart';
 import 'package:tambal/services/realtime_database_service.dart';
 import 'package:tambal/models/patient.dart';
 import 'package:tambal/widgets/custom_patient_list_card.dart';
+import 'package:tambal/modals/modal_add_patient.dart';
 
 class PatientsPage extends StatelessWidget {
   const PatientsPage({super.key});
@@ -43,14 +42,22 @@ class PatientsPage extends StatelessWidget {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
+
                   if (snapshot.hasError) {
                     return Center(
-                      child: Text('Error: ${snapshot.error}'),
+                      child: Text(
+                        'Error: ${snapshot.error}',
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     );
                   }
+
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(
-                      child: Text('No patients yet.'),
+                      child: Text(
+                        'No patients yet. Click the "+" button to add a patient.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
                     );
                   }
 
@@ -60,7 +67,8 @@ class PatientsPage extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final patient = patients[index];
                       return CustomPatientListCard(
-                        name: patient.name,
+                        name: patient
+                            .name, // Removed '??' since it's non-nullable
                         gender: patient.gender,
                         age: patient.age,
                         onEdit: () {
@@ -71,7 +79,12 @@ class PatientsPage extends StatelessWidget {
                               firestoreService, realtimeDatabaseService);
                         },
                         onDispense: () {
-                          logger.i('Dispensing for ${patient.name}');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Dispensing medication for ${patient.name}'),
+                            ),
+                          );
                         },
                       );
                     },
@@ -93,22 +106,22 @@ class PatientsPage extends StatelessWidget {
     );
   }
 
+  /// Show the Add Patient Modal
   void _showAddPatientModal(BuildContext context) async {
     try {
-      // Fetch the available medicines with slots before opening the modal
       final firestoreService =
           Provider.of<FirestoreService>(context, listen: false);
-      List<Map<String, dynamic>> fetchedMedicines =
+      final fetchedMedicines =
           await firestoreService.getAvailableMedicinesWithSlots();
 
-      List<Map<String, String>> availableMedicines = fetchedMedicines
-          .map((medicine) => {
-                'slot': medicine['slot'].toString(),
-                'name': medicine['name'].toString(),
-              })
-          .toList();
+      List<Map<String, String>> availableMedicines =
+          fetchedMedicines.map((medicine) {
+        return {
+          'slot': medicine['slot'].toString(),
+          'name': medicine['name'].toString(),
+        };
+      }).toList();
 
-      // Open the modal only after data fetching is complete
       if (context.mounted) {
         showDialog(
           context: context,
@@ -118,7 +131,6 @@ class PatientsPage extends StatelessWidget {
         );
       }
     } catch (error) {
-      // Show error message only if the context is still valid
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load medicines: $error')),
@@ -127,35 +139,34 @@ class PatientsPage extends StatelessWidget {
     }
   }
 
+  /// Show the Edit Patient Modal
   void _showEditPatientModal(BuildContext context, Patient patient) async {
     try {
-      // Fetch the available medicines with slots before opening the modal
       final firestoreService =
           Provider.of<FirestoreService>(context, listen: false);
-      List<Map<String, dynamic>> fetchedMedicines =
+      final fetchedMedicines =
           await firestoreService.getAvailableMedicinesWithSlots();
 
-      List<Map<String, String>> availableMedicines = fetchedMedicines
-          .map((medicine) => {
-                'slot': medicine['slot'].toString(),
-                'name': medicine['name'].toString(),
-              })
-          .toList();
+      List<Map<String, String>> availableMedicines =
+          fetchedMedicines.map((medicine) {
+        return {
+          'slot': medicine['slot'].toString(),
+          'name': medicine['name'].toString(),
+        };
+      }).toList();
 
-      // Open the modal only after data fetching is complete
       if (context.mounted) {
         showDialog(
           context: context,
           builder: (BuildContext context) {
             return AddPatientModal(
               availableMedicines: availableMedicines,
-              patient: patient, // Pass the existing patient data for editing
+              patient: patient,
             );
           },
         );
       }
     } catch (error) {
-      // Show error message only if the context is still valid
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load medicines: $error')),
@@ -164,12 +175,13 @@ class PatientsPage extends StatelessWidget {
     }
   }
 
+  /// Show the Delete Confirmation Dialog
   void _showDeleteConfirmation(
       BuildContext context,
       String patientId,
       FirestoreService firestoreService,
       RealtimeDatabaseService realtimeDatabaseService) async {
-    bool? confirmDelete = await showDialog(
+    final confirmDelete = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -195,10 +207,7 @@ class PatientsPage extends StatelessWidget {
 
     if (confirmDelete == true) {
       try {
-        // Delete from Firestore
         await firestoreService.deletePatientAndSchedules(patientId);
-
-        // Delete from Realtime Database
         await realtimeDatabaseService.deleteSchedulesByPatient(patientId);
 
         if (context.mounted) {

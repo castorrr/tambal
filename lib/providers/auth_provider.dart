@@ -3,7 +3,8 @@ import 'package:tambal/models/users.dart'; // Import your UserModel
 import 'package:tambal/services/auth_service.dart'; // Your AuthService
 
 class AuthProvider with ChangeNotifier {
-  final AuthService _authService = AuthService(); // Instance of your AuthService
+  final AuthService _authService =
+      AuthService(); // Instance of your AuthService
   UserModel? _user; // Private UserModel to hold the current user information
   String? _errorMessage; // Error message for handling authentication errors
   bool _isLoading = false; // Boolean to track the loading state
@@ -32,7 +33,8 @@ class AuthProvider with ChangeNotifier {
         _errorMessage = 'Login failed. Please check your credentials.';
       }
     } catch (e) {
-      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
+      _errorMessage =
+          'Error: ${e.toString()}'; // Capture and set the error message
     } finally {
       _isLoading = false; // Stop loading
       notifyListeners(); // Notify UI to reflect changes
@@ -54,7 +56,8 @@ class AuthProvider with ChangeNotifier {
         _errorMessage = 'Google sign-in failed. Please try again.';
       }
     } catch (e) {
-      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
+      _errorMessage =
+          'Error: ${e.toString()}'; // Capture and set the error message
     } finally {
       _isLoading = false; // Stop loading
       notifyListeners(); // Notify UI to reflect changes
@@ -62,7 +65,8 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Sign up a new user
-  Future<void> signUp(String name, String username, String email, String password) async {
+  Future<void> signUp(
+      String name, String username, String email, String password) async {
     try {
       _isLoading = true; // Start loading
       _errorMessage = null; // Clear any previous error messages
@@ -81,7 +85,8 @@ class AuthProvider with ChangeNotifier {
         _errorMessage = 'Sign up failed. Please try again.';
       }
     } catch (e) {
-      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
+      _errorMessage =
+          'Error: ${e.toString()}'; // Capture and set the error message
     } finally {
       _isLoading = false; // Stop loading
       notifyListeners(); // Notify UI to reflect changes
@@ -95,7 +100,8 @@ class AuthProvider with ChangeNotifier {
       _user = null; // Clear user information
       notifyListeners(); // Notify UI to reflect changes
     } catch (e) {
-      _errorMessage = 'Error: ${e.toString()}'; // Capture and set the error message
+      _errorMessage =
+          'Error: ${e.toString()}'; // Capture and set the error message
     }
   }
 }
