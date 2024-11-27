@@ -201,13 +201,18 @@ class AddPatientModalState extends State<AddPatientModal> {
         };
         await firestoreService.updatePatient(widget.patient!.id, data);
 
+        // Delete all existing schedules first
         final existingSchedules =
             await firestoreService.getSchedulesForPatient(widget.patient!.id);
-        final updatedScheduleIds = <String>{};
+        for (final schedule in existingSchedules) {
+          await firestoreService.deleteSchedule(schedule.id);
+          await realtimeDatabaseService.deleteSchedule(schedule.id);
+        }
 
+        // Create all schedules as new
         for (final schedule in schedules) {
-          final scheduleId =
-              schedule['id'] ?? firestoreService.generateUniqueId('schedules');
+          final String scheduleId =
+              firestoreService.generateUniqueId('schedules');
           final scheduleData = Schedule(
             id: scheduleId,
             patientId: widget.patient!.id,
@@ -219,20 +224,10 @@ class AddPatientModalState extends State<AddPatientModal> {
           );
 
           await firestoreService.addSchedule(scheduleData);
-          await realtimeDatabaseService
-              .syncSchedule(scheduleData); // Sync to Realtime Database
-          updatedScheduleIds.add(scheduleId);
-        }
-
-        for (final existingSchedule in existingSchedules) {
-          if (!updatedScheduleIds.contains(existingSchedule.id)) {
-            await firestoreService.deleteSchedule(existingSchedule.id);
-            await realtimeDatabaseService.deleteSchedule(
-                existingSchedule.id); // Remove from Realtime Database
-          }
+          await realtimeDatabaseService.syncSchedule(scheduleData);
         }
       } else {
-        // Add new patient
+        // Add new patient (unchanged)
         final String patientId = firestoreService.generateUniqueId('patients');
         final patient = Patient(
           id: patientId,
@@ -256,8 +251,7 @@ class AddPatientModalState extends State<AddPatientModal> {
           );
 
           await firestoreService.addSchedule(scheduleData);
-          await realtimeDatabaseService
-              .syncSchedule(scheduleData); // Sync to Realtime Database
+          await realtimeDatabaseService.syncSchedule(scheduleData);
         }
       }
 

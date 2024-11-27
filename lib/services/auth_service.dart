@@ -10,24 +10,45 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Sign in with email and password, return UserModel
-  Future<UserModel?> signInWithEmailAndPassword(String email, String password) async {
+  Future<UserModel?> signInWithEmailAndPassword(
+      String email, String password) async {
     try {
-      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+      // Attempt to sign in with email and password
+      final UserCredential userCredential =
+          await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
       final User? user = userCredential.user;
 
-      // Fetch user data from Firestore
+      // Fetch user data from Firestore if user exists
       if (user != null) {
-        final DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
         if (userDoc.exists) {
           return UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
+        } else {
+          throw Exception('User data not found in Firestore');
         }
       }
-      return null;
-    } on FirebaseAuthException {
-      rethrow;
+
+      throw Exception('User authentication failed');
+    } on FirebaseAuthException catch (e) {
+      // Map FirebaseAuth errors to user-friendly messages
+      switch (e.code) {
+        case 'user-not-found':
+          throw Exception('No user found for that email');
+        case 'wrong-password':
+          throw Exception('Incorrect password');
+        case 'invalid-email':
+          throw Exception('The email address is not valid');
+        default:
+          throw Exception('An unexpected error occurred: ${e.message}');
+      }
+    } catch (e) {
+      // Catch any other exceptions
+      throw Exception('An unexpected error occurred: ${e.toString()}');
     }
   }
 
@@ -40,18 +61,21 @@ class AuthService {
         return null;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final OAuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential =
+          await _auth.signInWithCredential(credential);
       final User? user = userCredential.user;
 
       if (user != null) {
-        final DocumentSnapshot userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
 
         if (!userDoc.exists) {
           final UserModel newUser = UserModel(
@@ -63,7 +87,10 @@ class AuthService {
             createdAt: DateTime.now(),
           );
 
-          await _firestore.collection('users').doc(newUser.uid).set(newUser.toMap());
+          await _firestore
+              .collection('users')
+              .doc(newUser.uid)
+              .set(newUser.toMap());
           return newUser;
         } else {
           return UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
@@ -84,7 +111,8 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -100,7 +128,10 @@ class AuthService {
           createdAt: DateTime.now(),
         );
 
-        await _firestore.collection('users').doc(newUser.uid).set(newUser.toMap());
+        await _firestore
+            .collection('users')
+            .doc(newUser.uid)
+            .set(newUser.toMap());
         return newUser;
       }
       return null;

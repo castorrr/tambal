@@ -167,7 +167,8 @@ class FirestoreService {
   Stream<List<Patient>> getPatientsStream() {
     return _firestore.collection('patients').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        return Patient.fromMap(doc.data(), doc.id);
+        final data = doc.data();
+        return Patient.fromMap(data, doc.id);
       }).toList();
     });
   }

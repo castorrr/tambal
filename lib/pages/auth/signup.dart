@@ -14,7 +14,15 @@ class SignupPageState extends State<SignupPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
+
+  // Variables to store error messages
+  String? _nameError;
+  String? _usernameError;
+  String? _emailError;
+  String? _passwordError;
+  String? _confirmPasswordError;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +49,7 @@ class SignupPageState extends State<SignupPage> {
                   controller: _nameController,
                   decoration: InputDecoration(
                     labelText: 'Name',
+                    errorText: _nameError,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
@@ -52,6 +61,7 @@ class SignupPageState extends State<SignupPage> {
                   controller: _usernameController,
                   decoration: InputDecoration(
                     labelText: 'Username',
+                    errorText: _usernameError,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
@@ -63,6 +73,7 @@ class SignupPageState extends State<SignupPage> {
                   controller: _emailController,
                   decoration: InputDecoration(
                     labelText: 'Email',
+                    errorText: _emailError,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
@@ -76,6 +87,7 @@ class SignupPageState extends State<SignupPage> {
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: 'Password',
+                    errorText: _passwordError,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
@@ -88,6 +100,7 @@ class SignupPageState extends State<SignupPage> {
                   obscureText: true,
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
+                    errorText: _confirmPasswordError,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
@@ -99,31 +112,89 @@ class SignupPageState extends State<SignupPage> {
                   onPressed: authProvider.isLoading
                       ? null
                       : () async {
-                    if (_passwordController.text != _confirmPasswordController.text) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Passwords do not match'),
-                        ),
-                      );
-                      return;
-                    }
+                          setState(() {
+                            // Reset error messages
+                            _nameError = null;
+                            _usernameError = null;
+                            _emailError = null;
+                            _passwordError = null;
+                            _confirmPasswordError = null;
+                          });
 
-                    await authProvider.signUp(
-                      _nameController.text,
-                      _usernameController.text,
-                      _emailController.text,
-                      _passwordController.text,
-                    );
+                          // Validate inputs locally
+                          if (_nameController.text.isEmpty) {
+                            setState(() {
+                              _nameError = 'Name cannot be empty';
+                            });
+                            return;
+                          }
+                          if (_usernameController.text.isEmpty) {
+                            setState(() {
+                              _usernameError = 'Username cannot be empty';
+                            });
+                            return;
+                          }
+                          if (_emailController.text.isEmpty ||
+                              !_emailController.text.contains('@')) {
+                            setState(() {
+                              _emailError = 'Enter a valid email';
+                            });
+                            return;
+                          }
+                          if (_passwordController.text.length < 6) {
+                            setState(() {
+                              _passwordError =
+                                  'Password must be at least 6 characters';
+                            });
+                            return;
+                          }
+                          if (_passwordController.text !=
+                              _confirmPasswordController.text) {
+                            setState(() {
+                              _confirmPasswordError = 'Passwords do not match';
+                            });
+                            return;
+                          }
 
-                    // Use context.mounted to check if the widget is still part of the widget tree
-                    if (authProvider.user != null && context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/login');
-                    }
-                  },
+                          try {
+                            await authProvider.signUp(
+                              _nameController.text,
+                              _usernameController.text,
+                              _emailController.text,
+                              _passwordController.text,
+                            );
+
+                            if (authProvider.user != null && context.mounted) {
+                              Navigator.pushReplacementNamed(context, '/login');
+                            }
+                          } catch (e) {
+                            // Handle specific errors from the provider
+                            setState(() {
+                              if (e.toString().contains('weak-password')) {
+                                _passwordError = 'Password is too weak';
+                              } else if (e
+                                  .toString()
+                                  .contains('email-already-in-use')) {
+                                _emailError = 'Email is already in use';
+                              } else if (e
+                                  .toString()
+                                  .contains('invalid-email')) {
+                                _emailError = 'Invalid email format';
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString()),
+                                  ),
+                                );
+                              }
+                            });
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 50, vertical: 15),
                     textStyle: const TextStyle(fontSize: 16),
                   ),
                   child: authProvider.isLoading

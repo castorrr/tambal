@@ -20,14 +20,18 @@ class CustomPatientListCard extends StatelessWidget {
 
   // Function to get initials from the name
   String getInitials(String name) {
-    List<String> nameParts = name.split(" ");
+    // Trim the name to avoid issues with extra spaces
+    List<String> nameParts = name.trim().split(" ");
     String initials = "";
+
     if (nameParts.isNotEmpty) {
-      initials = nameParts[0][0];
-      if (nameParts.length > 1) {
-        initials += nameParts[1][0];
+      initials = nameParts[0][0]; // Add the first letter of the first name part
+      if (nameParts.length > 1 && nameParts[1].isNotEmpty) {
+        initials +=
+            nameParts[1][0]; // Add the first letter of the second name part
       }
     }
+
     return initials.toUpperCase();
   }
 
