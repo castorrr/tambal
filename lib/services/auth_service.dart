@@ -9,6 +9,57 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
+  Future<UserModel?> getCurrentUser() async {
+    try {
+      final User? user = _auth.currentUser;
+      if (user != null) {
+        // If the user is anonymous, skip Firestore fetch
+        if (user.isAnonymous) {
+          return null;
+        }
+
+        final DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          return UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
+        } else {
+          throw Exception('Firestore document not found for user ${user.uid}');
+        }
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Failed to get current user: ${e.toString()}');
+    }
+  }
+
+  Stream<UserModel?> authStateChanges() {
+    return _auth.authStateChanges().asyncMap((User? user) async {
+      if (user != null) {
+        final DocumentSnapshot userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          return UserModel.fromMap(userDoc.data() as Map<String, dynamic>);
+        }
+      }
+      return null;
+    });
+  }
+
+  String getFirebaseAuthErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'No user found for that email.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'email-already-in-use':
+        return 'This email is already in use. Please use a different email.';
+      case 'invalid-email':
+        return 'The email address is not valid.';
+      default:
+        return 'An unexpected error occurred. Please try again later.';
+    }
+  }
+
   // Sign in with email and password, return UserModel
   Future<UserModel?> signInWithEmailAndPassword(
       String email, String password) async {
@@ -142,7 +193,14 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    await _auth.signOut();
-    await _googleSignIn.signOut();
+    try {
+      // Sign out from Firebase Authentication
+      await _auth.signOut();
+
+      // Sign out from Google Sign-In
+      await _googleSignIn.signOut();
+    } catch (e) {
+      throw Exception('Failed to sign out: ${e.toString()}');
+    }
   }
 }

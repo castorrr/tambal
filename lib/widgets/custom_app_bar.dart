@@ -65,8 +65,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     : null, // Null if no image
                 child: user?.profilePicture == null
                     ? Text(
-                        getInitials(user?.name ??
-                            'User'), // Show initials if no profile picture
+                        getInitials(user?.name ?? 'User'),
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -87,27 +86,21 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     const Text(
                       'Hi, Welcome Back',
                       style: TextStyle(
-                        fontSize:
-                            12, // Adjust font size for the smaller welcome text
-                        color:
-                            Colors.blue, // Set the welcome text color to blue
+                        fontSize: 12, // Adjust font size for the smaller text
+                        color: Colors.blue, // Set the text color to blue
                       ),
-                      overflow:
-                          TextOverflow.ellipsis, // Handle overflow gracefully
+                      overflow: TextOverflow.ellipsis, // Handle overflow
                     ),
                     Flexible(
                       child: Text(
-                        getFirstTwoNames(user?.name ??
-                            'Guest User'), // Display only the first two names
+                        getFirstTwoNames(user?.name ?? 'Guest User'),
                         style: const TextStyle(
                           fontSize: 14, // Adjust font size for the name
                           fontWeight: FontWeight.bold,
                           color: Colors.black, // Set the user name color
                         ),
-                        overflow:
-                            TextOverflow.ellipsis, // Handle overflow gracefully
-                        maxLines:
-                            1, // Restrict the text to a single line (if needed)
+                        overflow: TextOverflow.ellipsis, // Handle overflow
+                        maxLines: 1, // Restrict to a single line
                       ),
                     ),
                   ],
@@ -158,10 +151,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             icon: const Icon(Icons.settings), // Settings icon in the app bar
             onSelected: (String result) async {
               if (result == 'Logout') {
+                // Capture the BuildContext at the beginning of the method
+                final BuildContext dialogContext = context;
+
+                // Show the logout dialog
                 final bool? shouldLogout = await showLogoutDialog();
-                if (shouldLogout == true && context.mounted) {
-                  Navigator.pushReplacementNamed(
-                      context, '/login'); // Redirect to login
+
+                if (shouldLogout == true && dialogContext.mounted) {
+                  // Call signOut to clear session
+                  final authProvider =
+                      Provider.of<AuthProvider>(dialogContext, listen: false);
+                  await authProvider.signOut();
+
+                  // Redirect to login page
+                  if (dialogContext.mounted) {
+                    Navigator.pushReplacementNamed(dialogContext, '/login');
+                  }
                 }
               }
             },

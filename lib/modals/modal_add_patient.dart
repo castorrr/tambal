@@ -369,7 +369,7 @@ class AddPatientModalState extends State<AddPatientModal> {
   void _startFingerprintEnrollment(
       Timer? timeoutTimer, bool fingerprintExtracted) async {
     // Set a timeout for 10 seconds
-    timeoutTimer = Timer(const Duration(seconds: 10), () {
+    timeoutTimer = Timer(const Duration(seconds: 15), () {
       if (!fingerprintExtracted && mounted) {
         Navigator.of(context).pop(); // Dismiss loading dialog
         realtimeDatabaseService.resetFingerprintCommand();

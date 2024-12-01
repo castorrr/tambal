@@ -295,4 +295,9 @@ class FirestoreService {
       rethrow;
     }
   }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> getScheduleById(
+      String scheduleId) {
+    return _firestore.collection('schedules').doc(scheduleId).get();
+  }
 }

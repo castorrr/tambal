@@ -1,6 +1,7 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/schedule.dart';
+import 'package:tambal/models/dispensing_log.dart';
 
 class RealtimeDatabaseService {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
@@ -137,5 +138,46 @@ class RealtimeDatabaseService {
     } catch (e) {
       _logger.e('Failed to sync schedules for patient $patientId: $e');
     }
+  }
+
+  //dispensing listener
+  Stream<List<DispensingLog>> streamDispensingLogs() {
+    // Reference to the dispensingLogs node
+    DatabaseReference logRef = FirebaseDatabase.instance.ref('dispensingLogs');
+
+    // Listen to the entire dispensingLogs node
+    return logRef.onValue.map((event) {
+      final data = event.snapshot.value;
+
+      if (data != null && data is Map) {
+        // List to store the dispensing logs
+        List<DispensingLog> dispensingLogs = [];
+
+        // Iterate through each entry in the dispensingLogs node
+        for (var entry in data.entries) {
+          final logData = Map<String, dynamic>.from(entry.value);
+
+          // Extract day, time, and patientName from Realtime Database
+          final day = logData['day'] ?? 'Unknown';
+          final time = logData['time'] ?? 'Unknown';
+          final patientName = logData['patientId'] ?? 'Unknown';
+
+          // Add the combined data as a DispensingLog with medicines set to null
+          dispensingLogs.add(
+            DispensingLog(
+              day: day,
+              time: time,
+              patientName: patientName,
+              medicineList: null, // Set medicines to null for now
+            ),
+          );
+        }
+
+        return dispensingLogs;
+      } else {
+        // Return an empty list if there's no data
+        return [];
+      }
+    });
   }
 }

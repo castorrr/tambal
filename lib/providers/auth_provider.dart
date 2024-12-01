@@ -18,6 +18,26 @@ class AuthProvider with ChangeNotifier {
   // Getter to check if authentication is in progress
   bool get isLoading => _isLoading;
 
+  // Initialize the current user on app startup
+  Future<void> initializeCurrentUser() async {
+    try {
+      _isLoading = true; // Start loading
+      notifyListeners();
+
+      // Fetch current user from AuthService
+      _user = await _authService.getCurrentUser();
+
+      if (_user == null) {
+        _errorMessage = 'No user is logged in.';
+      }
+    } catch (e) {
+      _errorMessage = 'Error initializing user: ${e.toString()}';
+    } finally {
+      _isLoading = false; // Stop loading
+      notifyListeners();
+    }
+  }
+
   // Sign in with email and password
   Future<void> signIn(String email, String password) async {
     try {
@@ -28,7 +48,6 @@ class AuthProvider with ChangeNotifier {
       // Fetch user data from AuthService
       _user = await _authService.signInWithEmailAndPassword(email, password);
 
-      // Handle case where sign-in fails
       if (_user == null) {
         _errorMessage = 'Login failed. Please check your credentials.';
       }
@@ -51,7 +70,6 @@ class AuthProvider with ChangeNotifier {
       // Fetch user data from AuthService
       _user = await _authService.signInWithGoogle();
 
-      // Handle case where Google sign-in fails
       if (_user == null) {
         _errorMessage = 'Google sign-in failed. Please try again.';
       }
@@ -80,7 +98,6 @@ class AuthProvider with ChangeNotifier {
         password: password,
       );
 
-      // Handle case where sign-up fails
       if (_user == null) {
         _errorMessage = 'Sign up failed. Please try again.';
       }
@@ -96,12 +113,17 @@ class AuthProvider with ChangeNotifier {
   // Sign out the current user
   Future<void> signOut() async {
     try {
-      await _authService.signOut(); // Sign out via AuthService
-      _user = null; // Clear user information
-      notifyListeners(); // Notify UI to reflect changes
+      await _authService.signOut(); // Sign out from both Firebase and Google
+      _user = null; // Clear user information in the provider
+      notifyListeners(); // Notify UI of changes
     } catch (e) {
-      _errorMessage =
-          'Error: ${e.toString()}'; // Capture and set the error message
+      _errorMessage = 'Error signing out: ${e.toString()}';
+      notifyListeners();
     }
+  }
+
+  // Check if the user is authenticated
+  bool isAuthenticated() {
+    return _user != null;
   }
 }

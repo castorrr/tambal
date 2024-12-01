@@ -1,33 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:tambal/widgets/custom_recent_patient.dart'; // Import RecentPatientCard widget
+import 'package:tambal/widgets/custom_recent_patient.dart'; // Import your RecentPatientCard widget
+import 'package:tambal/services/realtime_database_service.dart'; // Import your RealtimeDatabaseService
+import 'package:tambal/models/dispensing_log.dart'; // Import your DispensingLog model
 
 class MonitorPage extends StatelessWidget {
   const MonitorPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Sample recent patient data
-    final List<Map<String, dynamic>> recentPatients = [
-      {
-        'patientName': 'Mrs. Mary T. Smith',
-        'patientGender': 'Female',
-        'patientAge': 49,
-        'medicineDispensed': 'Aspirin',
-      },
-      {
-        'patientName': 'Mr. James Retubado',
-        'patientGender': 'Male',
-        'patientAge': 52,
-        'medicineDispensed': 'Metformin',
-      },
-      {
-        'patientName': 'Mr. Ronerr Villacarlos',
-        'patientGender': 'Male',
-        'patientAge': 61,
-        'medicineDispensed': 'Atorvastatin',
-      },
-    ];
-
     return Scaffold(
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -44,17 +24,41 @@ class MonitorPage extends StatelessWidget {
             ),
             const SizedBox(height: 16), // Spacing between title and cards
 
-            // Display recent patient cards
+            // StreamBuilder to display dispensing logs
             Expanded(
-              child: ListView.builder(
-                itemCount: recentPatients.length,
-                itemBuilder: (context, index) {
-                  final patient = recentPatients[index];
-                  return RecentPatientCard(
-                    patientName: patient['patientName'],
-                    patientGender: patient['patientGender'],
-                    patientAge: patient['patientAge'],
-                    medicineDispensed: patient['medicineDispensed'],
+              child: StreamBuilder<List<DispensingLog>>(
+                stream: RealtimeDatabaseService().streamDispensingLogs(),
+                builder: (context, snapshot) {
+                  // Handle loading state
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  // Handle error state
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+
+                  // Handle empty data state
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(
+                        child: Text('No dispensing logs available.'));
+                  }
+
+                  final logs = snapshot.data!;
+
+                  // Display list of dispensing logs
+                  return ListView.builder(
+                    itemCount: logs.length,
+                    itemBuilder: (context, index) {
+                      final log = logs[index];
+                      return RecentPatientCard(
+                        patientName: log.patientName,
+                        day: log.day,
+                        time: log.time,
+                        medicineList: log.medicineList ?? [],
+                      );
+                    },
                   );
                 },
               ),
