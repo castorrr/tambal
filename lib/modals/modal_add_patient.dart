@@ -35,7 +35,9 @@ class AddPatientModalState extends State<AddPatientModal> {
   List<Map<String, dynamic>> schedules = [];
   List<bool> selectedDays = List.generate(7, (index) => false);
   bool everyDaySelected = false;
-  List<String> fingerprintIDs = []; // List to store fingerprint IDs
+  List<String> fingerprintIDs = [];
+  bool isLoading = false; // Track the loading state
+// List to store fingerprint IDs
 
   @override
   void initState() {
@@ -161,33 +163,59 @@ class AddPatientModalState extends State<AddPatientModal> {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: _savePatient,
-          child: const Text('Save Patient'),
+          onPressed:
+              isLoading ? null : _savePatient, // Disable the button if loading
+          child: isLoading
+              ? const CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                )
+              : const Text('Save Patient'),
         ),
       ],
     );
   }
 
   Future<void> _savePatient() async {
+    if (isLoading) return; // Prevent multiple clicks
+
+    setState(() {
+      isLoading = true;
+    });
+
+    // Show the loading dialog
+    _showPatientLoadingDialog();
+
     final String name = nameController.text;
     final int? age = int.tryParse(ageController.text);
 
     if (name.isEmpty) {
+      if (mounted) Navigator.of(context).pop(); // Dismiss loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid name.')),
       );
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
     if (age == null) {
+      if (mounted) Navigator.of(context).pop(); // Dismiss loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid age as a number.')),
       );
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
     if (schedules.isEmpty) {
+      if (mounted) Navigator.of(context).pop(); // Dismiss loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one schedule.')),
       );
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
 
@@ -227,7 +255,7 @@ class AddPatientModalState extends State<AddPatientModal> {
           await realtimeDatabaseService.syncSchedule(scheduleData);
         }
       } else {
-        // Add new patient (unchanged)
+        // Add new patient
         final String patientId = firestoreService.generateUniqueId('patients');
         final patient = Patient(
           id: patientId,
@@ -255,16 +283,25 @@ class AddPatientModalState extends State<AddPatientModal> {
         }
       }
 
-      if (!mounted) return;
-      logger.i('Patient and schedules saved successfully: $name');
-      Navigator.of(context).pop();
+      if (mounted) {
+        logger.i('Patient and schedules saved successfully: $name');
+        Navigator.of(context).pop(); // Close the dialog
+      }
     } catch (e) {
-      if (!mounted) return;
       logger.e('Error saving patient and schedules: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Failed to save patient. Please try again.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Failed to save patient. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss loading dialog
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -358,17 +395,21 @@ class AddPatientModalState extends State<AddPatientModal> {
 
       if (countdown <= 0) {
         timer.cancel();
-        if (mounted) Navigator.of(context).pop(); // Dismiss the prompt dialog
+        if (mounted) {
+          Navigator.of(context).pop(); // Dismiss the prompt dialog
+        }
         _showLoadingDialog(); // Show the loading dialog for fingerprint extraction
         _startFingerprintEnrollment(
-            timeoutTimer, fingerprintExtracted); // Start fingerprint enrollment
+          timeoutTimer,
+          fingerprintExtracted,
+        ); // Start fingerprint enrollment
       }
     });
   }
 
   void _startFingerprintEnrollment(
       Timer? timeoutTimer, bool fingerprintExtracted) async {
-    // Set a timeout for 10 seconds
+    // Set a timeout for 15 seconds
     timeoutTimer = Timer(const Duration(seconds: 15), () {
       if (!fingerprintExtracted && mounted) {
         Navigator.of(context).pop(); // Dismiss loading dialog
@@ -376,8 +417,8 @@ class AddPatientModalState extends State<AddPatientModal> {
         logger.e('Failed to extract fingerprint within the timeout period.');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('Failed to extract fingerprint. Please try again.')),
+            content: Text('Failed to extract fingerprint. Please try again.'),
+          ),
         );
       }
     });
@@ -404,8 +445,10 @@ class AddPatientModalState extends State<AddPatientModal> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}')),
+              content: Text(
+                '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}',
+              ),
+            ),
           );
         }
       });
@@ -415,8 +458,8 @@ class AddPatientModalState extends State<AddPatientModal> {
         logger.e('Failed to extract fingerprint: $error');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('Failed to extract fingerprint. Please try again.')),
+            content: Text('Failed to extract fingerprint. Please try again.'),
+          ),
         );
       }
     }
@@ -426,7 +469,7 @@ class AddPatientModalState extends State<AddPatientModal> {
     if (!mounted) return; // Check if mounted before using `context`
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: false, // Prevent dismissing the prompt
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
@@ -454,6 +497,25 @@ class AddPatientModalState extends State<AddPatientModal> {
               CircularProgressIndicator(),
               SizedBox(width: 20),
               Text('Extracting fingerprint...'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showPatientLoadingDialog() {
+    if (!mounted) return; // Check if mounted before using `context`
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('Saving patient data...'),
             ],
           ),
         );

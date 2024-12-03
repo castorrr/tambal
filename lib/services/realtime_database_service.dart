@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:tambal/services/firestore_service.dart'; // Import FirestoreService
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/schedule.dart';
@@ -146,31 +148,80 @@ class RealtimeDatabaseService {
     DatabaseReference logRef = FirebaseDatabase.instance.ref('dispensingLogs');
 
     // Listen to the entire dispensingLogs node
-    return logRef.onValue.map((event) {
+    return logRef.onValue.asyncMap((event) async {
       final data = event.snapshot.value;
 
       if (data != null && data is Map) {
         // List to store the dispensing logs
         List<DispensingLog> dispensingLogs = [];
 
+        // Create an instance of FirestoreService
+        final firestoreService = FirestoreService();
+
         // Iterate through each entry in the dispensingLogs node
         for (var entry in data.entries) {
           final logData = Map<String, dynamic>.from(entry.value);
 
-          // Extract day, time, and patientName from Realtime Database
+          // Extract log data
           final day = logData['day'] ?? 'Unknown';
           final time = logData['time'] ?? 'Unknown';
           final patientName = logData['patientId'] ?? 'Unknown';
 
-          // Add the combined data as a DispensingLog with medicines set to null
+          // Safely parse `isDispensed` as a bool
+          final isDispensed = logData['isDispensed'] == 'true' ||
+              logData['isDispensed'] == true;
+
+          // Fetch the medicines array
+          final medicines = logData['medicines'] ?? [];
+
+          // Add the log data to the dispensingLogs list
           dispensingLogs.add(
             DispensingLog(
               day: day,
               time: time,
               patientName: patientName,
-              medicineList: null, // Set medicines to null for now
+              medicineList: medicines.isEmpty
+                  ? null
+                  : List<String>.from(
+                      medicines), // Convert to List<String> if necessary
             ),
           );
+
+          // If isDispensed is true, process the medicines asynchronously
+          if (isDispensed) {
+            Future(() async {
+              List<Map<String, dynamic>> medicineData = [];
+
+              // Fetch stock details for each medicine
+              for (String medicineName in List<String>.from(medicines)) {
+                // Use FirestoreService to query Firestore by name
+                final medicineQuery = await FirebaseFirestore.instance
+                    .collection('medicine')
+                    .where('name', isEqualTo: medicineName)
+                    .get();
+
+                if (medicineQuery.docs.isNotEmpty) {
+                  final doc = medicineQuery.docs.first;
+                  final currentStock = doc['stock'] ?? 0;
+
+                  if (currentStock > 0) {
+                    medicineData.add({
+                      'name': medicineName,
+                      'quantity': 1, // Decrement by 1 for each dispense
+                      'currentStock': currentStock,
+                      'docRef': doc.reference, // Store reference for updating
+                    });
+                  }
+                }
+              }
+
+              // Use FirestoreService to update stocks
+              await firestoreService.updateStocksByName(medicineData);
+
+              // Set isDispensed to false in the Realtime Database
+              await logRef.child(entry.key).update({'isDispensed': false});
+            });
+          }
         }
 
         return dispensingLogs;

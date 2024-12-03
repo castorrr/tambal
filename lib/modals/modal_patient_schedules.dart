@@ -19,83 +19,126 @@ class PatientSchedulesModal extends StatelessWidget {
 
   Future<void> _dispenseMedicines(
       BuildContext context, List<Map<String, dynamic>> medicines) async {
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
     final realtimeDatabaseService =
         Provider.of<RealtimeDatabaseService>(context, listen: false);
     final Logger logger = Logger();
 
     // Show the loading dialog
-    _showLoadingDialog(context, "Dispensing medicine");
+    _showLoadingDialog(context, "Checking Medicines and Dispensing");
 
-    bool allDispensedSuccessfully = true;
-
-    for (final medicine in medicines) {
-      // Safely parse 'slot' and 'quantity' as integers
-      final int slot = (medicine['slot'] is int)
-          ? medicine['slot']
-          : int.parse(medicine['slot']);
-      final int quantity = (medicine['quantity'] is int)
-          ? medicine['quantity']
-          : int.parse(medicine['quantity']);
-
-      for (int i = 0; i < quantity; i++) {
-        bool isDispensed = false;
-
-        logger.i(
-            'Setting slot $slot to dispense medicine ${medicine['name']} (Attempt ${i + 1})');
-        // Set the dispense slot
-        await realtimeDatabaseService.setDispenseSlot(slot);
-
-        // Wait for the ESP32 to confirm dispensing
-        await Future.delayed(
-            const Duration(milliseconds: 500)); // Give ESP32 time to respond
-        final Stopwatch timer = Stopwatch()..start();
-
-        while (timer.elapsed < const Duration(seconds: 10)) {
-          final int? currentSlot =
-              await realtimeDatabaseService.getDispenseSlot();
-          if (currentSlot == 0) {
-            // Dispense successful
-            isDispensed = true;
-            logger.i(
-                'Medicine ${medicine['name']} dispensed successfully from slot $slot.');
-            break;
-          }
-          await Future.delayed(
-              const Duration(milliseconds: 500)); // Poll every 500ms
-        }
-
-        timer.stop();
-
-        if (!isDispensed) {
-          // Dispense failed
-          allDispensedSuccessfully = false;
-          logger.e(
-              'Failed to dispense medicine ${medicine['name']} from slot $slot within the timeout period.');
-          await realtimeDatabaseService
-              .setDispenseSlot(0); // Reset the dispense slot
+    try {
+      // Validate medicines data
+      for (final medicine in medicines) {
+        if (medicine['name'] == null) {
+          logger.e('Medicine with missing name found: $medicine');
           if (context.mounted) {
-            Navigator.of(context).pop(); // Dismiss the loading dialog
-            _showResultDialog(context, false,
-                'Failed to dispense medicine ${medicine['name']} from slot $slot.');
+            Navigator.of(context).pop();
+            _showResultDialog(
+                context, false, 'One or more medicines have invalid data.');
           }
-          return; // Stop the process on failure
+          return;
         }
       }
-    }
 
-    if (context.mounted) {
-      Navigator.of(context).pop(); // Dismiss the loading dialog
-      _showResultDialog(
-          context,
-          allDispensedSuccessfully,
-          allDispensedSuccessfully
-              ? 'All medicines dispensed successfully!'
-              : 'Failed to dispense some medicines. Please try again.');
-    }
+      // Check if all stocks are sufficient
+      final allStocksAvailable =
+          await firestoreService.checkStocksByName(medicines);
 
-    logger.i(allDispensedSuccessfully
-        ? 'All medicines dispensed successfully.'
-        : 'Some medicines failed to dispense.');
+      if (!allStocksAvailable) {
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Dismiss loading dialog
+          _showResultDialog(
+              context, false, 'Insufficient stock for one or more medicines.');
+        }
+        logger.e(
+            'Dispense aborted: Insufficient stock for one or more medicines.');
+        return;
+      }
+
+      // Proceed to dispense medicines
+      bool allDispensedSuccessfully = true;
+
+      for (final medicine in medicines) {
+        final int slot = (medicine['slot'] is int)
+            ? medicine['slot']
+            : int.parse(medicine['slot']);
+        final int quantity = (medicine['quantity'] is int)
+            ? medicine['quantity']
+            : int.parse(medicine['quantity']);
+
+        for (int i = 0; i < quantity; i++) {
+          bool isDispensed = false;
+
+          logger.i(
+              'Setting slot $slot to dispense medicine ${medicine['name']} (Attempt ${i + 1})');
+          await realtimeDatabaseService.setDispenseSlot(slot);
+
+          // Wait for the ESP32 to confirm dispensing
+          await Future.delayed(const Duration(milliseconds: 500));
+          final Stopwatch timer = Stopwatch()..start();
+
+          while (timer.elapsed < const Duration(seconds: 10)) {
+            final int? currentSlot =
+                await realtimeDatabaseService.getDispenseSlot();
+            if (currentSlot == 0) {
+              isDispensed = true;
+              logger.i(
+                  'Medicine ${medicine['name']} dispensed successfully from slot $slot.');
+              break;
+            }
+            await Future.delayed(const Duration(milliseconds: 500));
+          }
+
+          timer.stop();
+
+          if (!isDispensed) {
+            allDispensedSuccessfully = false;
+            logger.e(
+                'Failed to dispense medicine ${medicine['name']} from slot $slot within the timeout period.');
+            await realtimeDatabaseService
+                .setDispenseSlot(0); // Reset the dispense slot
+            if (context.mounted) {
+              Navigator.of(context).pop(); // Dismiss the loading dialog
+              _showResultDialog(context, false,
+                  'Failed to dispense medicine ${medicine['name']} from slot $slot.');
+            }
+            return; // Stop the process on failure
+          }
+        }
+      }
+
+      // Update stocks after successful dispensing
+      if (allDispensedSuccessfully) {
+        logger.i('Updating stocks...');
+        await firestoreService.updateStocksByName(medicines);
+        logger.i('Stocks updated successfully after dispensing.');
+      } else {
+        logger.w('Dispensing failed. Stocks will not be updated.');
+      }
+
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Dismiss the loading dialog
+        _showResultDialog(
+            context,
+            allDispensedSuccessfully,
+            allDispensedSuccessfully
+                ? 'All medicines dispensed successfully!'
+                : 'Failed to dispense some medicines. Please try again.');
+      }
+
+      logger.i(allDispensedSuccessfully
+          ? 'All medicines dispensed successfully.'
+          : 'Some medicines failed to dispense.');
+    } catch (e) {
+      logger.e('An error occurred during dispensing: $e');
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Dismiss the loading dialog
+        _showResultDialog(
+            context, false, 'An error occurred. Please try again.');
+      }
+    }
   }
 
   void _confirmDispense(BuildContext context, Schedule schedule) {
@@ -136,10 +179,20 @@ class PatientSchedulesModal extends StatelessWidget {
       builder: (BuildContext context) {
         return AlertDialog(
           content: Row(
+            mainAxisSize: MainAxisSize
+                .min, // Ensure the dialog does not expand unnecessarily
             children: [
               const CircularProgressIndicator(),
               const SizedBox(width: 20),
-              Text(message),
+              Expanded(
+                // Ensure the text wraps or adjusts to fit
+                child: Text(
+                  message,
+                  overflow: TextOverflow
+                      .ellipsis, // Truncate text if it still overflows
+                  softWrap: true, // Allow the text to wrap to the next line
+                ),
+              ),
             ],
           ),
         );
@@ -153,7 +206,7 @@ class PatientSchedulesModal extends StatelessWidget {
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: Text(success ? 'Success' : 'Failure'),
+          title: Text(success ? 'Success' : 'Warning'),
           content: Text(message),
           actions: [
             TextButton(
