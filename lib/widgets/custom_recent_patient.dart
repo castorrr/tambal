@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 
 class RecentPatientCard extends StatelessWidget {
   final String patientName;
-  final String patientGender;
-  final int patientAge;
-  final String medicineDispensed;
+  final String day;
+  final String time;
+  final List<String> medicineList;
 
   const RecentPatientCard({
     super.key,
     required this.patientName,
-    required this.patientGender,
-    required this.patientAge,
-    required this.medicineDispensed,
+    required this.day,
+    required this.time,
+    required this.medicineList,
   });
 
   // Helper function to extract initials from the patient's name
@@ -33,29 +33,35 @@ class RecentPatientCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20), // Rounded corners for the card
       ),
       elevation: 4, // Shadow for the card
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Margin around the card
+      margin: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 8), // Margin around the card
       color: Colors.white, // Background color matching the design
       child: Padding(
         padding: const EdgeInsets.all(16), // Padding inside the card
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Circle Avatar with Initials
-            CircleAvatar(
-              radius: 30, // Adjust size of the avatar
-              backgroundColor: const Color(0xFF3A86FF), // Background color for the avatar
-              child: Text(
-                getInitials(patientName), // Show initials from the patient's name
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white, // Initials text color
+            // Adjusted Circle Avatar with Initials
+            Padding(
+              padding: const EdgeInsets.only(top: 10.0), // Move avatar down
+              child: CircleAvatar(
+                radius: 40, // Size of the avatar
+                backgroundColor:
+                    const Color(0xFF3A86FF), // Background color for the avatar
+                child: Text(
+                  getInitials(
+                      patientName), // Show initials from the patient's name
+                  style: const TextStyle(
+                    fontSize: 24, // Larger font size for initials
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white, // Initials text color
+                  ),
                 ),
               ),
             ),
-            const SizedBox(width: 16), // Space between the picture and text
+            const SizedBox(width: 16), // Space between the avatar and text
 
-            // Column for Patient Info (Name, Gender, Age)
+            // Expanded Column for Patient Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,51 +70,65 @@ class RecentPatientCard extends StatelessWidget {
                   Text(
                     patientName,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 24, // Increased font size for name
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF3A86FF), // Same blue as the title
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis, // Handle long names
                   ),
-                  const SizedBox(height: 8), // Space between name and gender/age
+                  const SizedBox(height: 8), // Space between name and day/time
 
-                  // Gender and Age Row
+                  // Day and Time
                   Row(
                     children: [
-                      // Gender
-                      Text(
-                        'Gender: $patientGender',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(width: 16), // Space between gender and age
-
-                      // Age
-                      Text(
-                        'Age: $patientAge',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8), // Space between gender/age and medicine
-
-                  // Medicine Dispensed
-                  Row(
-                    children: [
-                      const Icon(Icons.medication, color: Colors.blueAccent),
+                      const Icon(Icons.calendar_today,
+                          size: 16, color: Colors.grey),
                       const SizedBox(width: 8),
-                      Text(
-                        'Dispensed: $medicineDispensed',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.black,
+                      Expanded(
+                        child: Text(
+                          'Day: $day',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis, // Handle overflow
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time,
+                          size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Time: $time',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis, // Handle overflow
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(
+                      height: 8), // Space between day/time and medicine
+
+                  // Medicines in single line
+                  Text(
+                    'Medicine: ${medicineList.join(', ')}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis, // Handle overflow
                   ),
                 ],
               ),

@@ -22,32 +22,61 @@ class MedicinePageState extends State<MedicinePage> {
   Future<void> _handleDispense(Medicine medicine) async {
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        title: Text("Dispensing Medicine"),
-        content: Text("Please wait..."),
-      ),
-    );
+    bool dialogShown = false;
 
-    bool success = false;
+    // Show dialog before starting async operations
     try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          title: Text("Dispensing Medicine"),
+          content: Text("Please wait..."),
+        ),
+      );
+      dialogShown = true;
+
+      bool success = false;
+
+      // Check stock first
+      final firestoreService = FirestoreService();
+      final currentStock = await firestoreService.checkStock(medicine.id);
+
+      if (currentStock <= 0) {
+        logger.e('No stock available for medicine ${medicine.id}.');
+
+        if (dialogShown && mounted) {
+          Navigator.of(context).pop(); // Close the dialog
+          dialogShown = false;
+        }
+
+        _showSnackBar('No stock available for this medicine.');
+        return;
+      }
+
+      // Proceed with dispensing if stock is available
       final dispenseService = DispenseService(RealtimeDatabaseService());
       success = await dispenseService.dispenseMedicine(medicine.slot);
-    } catch (error) {
-      logger.e('Failed to set dispense: $error');
-    }
-
-    if (mounted) {
-      Navigator.of(context).pop();
 
       if (success) {
-        logger.i('Medicine dispensed successfully from slot ${medicine.slot}.');
-        _showSnackBar('Medicine dispensed successfully.');
+        await firestoreService.decrementStock(medicine.id, 1);
+
+        logger.i(
+            'Medicine dispensed successfully from slot ${medicine.slot}. Stock updated.');
       } else {
         logger.e('Unsuccessful dispensing. Slot ${medicine.slot} reset to 0.');
-        _showSnackBar('Unsuccessful dispensing. Please try again.');
+      }
+
+      // Ensure the dialog is closed
+    } catch (error) {
+      logger.e('Failed to dispense medicine or update stock: $error');
+    } finally {
+      if (dialogShown && mounted) {
+        try {
+          Navigator.of(context).pop();
+        } catch (e) {
+          logger.w('Tried to close a dialog that was not open: $e');
+        }
       }
     }
   }

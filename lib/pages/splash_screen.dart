@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'package:provider/provider.dart'; // Import provider
-import 'package:tambal/providers/auth_provider.dart'; // Import AuthProvider
+import 'package:provider/provider.dart';
+import 'package:tambal/providers/auth_provider.dart';
 import 'welcome_page.dart';
 import 'dashboard/main_dashboard.dart';
 
@@ -12,48 +11,52 @@ class SplashScreen extends StatefulWidget {
   SplashScreenState createState() => SplashScreenState();
 }
 
-class SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   bool _visible = false;
 
   @override
   void initState() {
     super.initState();
     _startAnimation();
-    _navigateWithFadeOut();
+    _checkAuthenticationState();
   }
 
   void _startAnimation() {
-    setState(() {
-      _visible = true; // Start fade-in
-    });
-  }
-
-  void _navigateWithFadeOut() {
-    // Trigger fade-out after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(milliseconds: 300), () {
       if (mounted) {
         setState(() {
-          _visible = false; // Start fade-out
+          _visible = true;
         });
       }
     });
+  }
 
-    // Navigate based on user authentication state after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {  // Check if the widget is still mounted
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+  Future<void> _checkAuthenticationState() async {
+    // Ensure splash screen is shown for at least 3 seconds
+    await Future.delayed(const Duration(seconds: 3));
 
-        if (authProvider.user != null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MainDashboard()),
-          );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const WelcomePage()),
-          );
-        }
-      }
-    });
+    if (!mounted) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    bool isAuthenticated = false;
+
+    try {
+      await authProvider.initializeCurrentUser();
+      isAuthenticated = authProvider.user != null;
+    } catch (e) {
+      // Log error or handle it appropriately
+      isAuthenticated = false;
+    }
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (context) =>
+              isAuthenticated ? const MainDashboard() : const WelcomePage(),
+        ),
+      );
+    }
   }
 
   @override
@@ -62,7 +65,7 @@ class SplashScreenState extends State<SplashScreen> with SingleTickerProviderSta
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Center(
         child: AnimatedOpacity(
-          opacity: _visible ? 1.0 : 0.0, // Controls fade-in and fade-out
+          opacity: _visible ? 1.0 : 0.0,
           duration: const Duration(seconds: 2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -85,6 +88,8 @@ class SplashScreenState extends State<SplashScreen> with SingleTickerProviderSta
                   color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
+              const SizedBox(height: 20),
+              const CircularProgressIndicator(),
             ],
           ),
         ),

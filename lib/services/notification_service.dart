@@ -155,7 +155,7 @@ class NotificationService {
 
       const title = "Medication Reminder";
       final body =
-          "Hello ${schedule.patientName}, it's almost time to take your medication:\n$medicineList";
+          "Hello ${schedule.patientName}, it's almost time to take your medication.\n$medicineList";
 
       await AwesomeNotifications().createNotification(
         content: NotificationContent(

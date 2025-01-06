@@ -295,4 +295,96 @@ class FirestoreService {
       rethrow;
     }
   }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> getScheduleById(
+      String scheduleId) {
+    return _firestore.collection('schedules').doc(scheduleId).get();
+  }
+
+  //check medicine stock
+  Future<int> checkStock(String medicineId) async {
+    final medicineDoc = _firestore.collection('medicine').doc(medicineId);
+
+    try {
+      final snapshot = await medicineDoc.get();
+
+      if (snapshot.exists) {
+        final stock = snapshot.get('stock') ?? 0;
+        return stock;
+      } else {
+        throw Exception('Medicine document not found: $medicineId');
+      }
+    } catch (e) {
+      throw Exception('Failed to check stock for medicine $medicineId: $e');
+    }
+  }
+
+  //decrement of stocks
+  Future<void> decrementStock(String medicineId, int quantity) async {
+    final medicineDoc = _firestore.collection('medicine').doc(medicineId);
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(medicineDoc);
+      if (snapshot.exists) {
+        final currentStock = snapshot.get('stock') ?? 0;
+        if (currentStock >= quantity) {
+          transaction.update(medicineDoc, {'stock': currentStock - quantity});
+        } else {
+          throw Exception(
+              'Insufficient stock for medicine with ID $medicineId.');
+        }
+      } else {
+        throw Exception('Medicine document not found: $medicineId.');
+      }
+    });
+  }
+
+  //schedule dispensing
+  Future<bool> checkStocksByName(List<Map<String, dynamic>> medicines) async {
+    for (final medicine in medicines) {
+      final medicineName = medicine['name'];
+      final requiredQuantity = medicine['quantity'];
+
+      final querySnapshot = await _firestore
+          .collection('medicine')
+          .where('name', isEqualTo: medicineName)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        return false; // Medicine not found
+      }
+
+      final doc = querySnapshot.docs.first;
+      final currentStock = doc.get('stock') ?? 0;
+
+      if (currentStock < requiredQuantity) {
+        return false; // Insufficient stock
+      }
+    }
+    return true; // All stocks are sufficient
+  }
+
+  Future<void> updateStocksByName(List<Map<String, dynamic>> medicines) async {
+    final batch = _firestore.batch();
+
+    for (final medicine in medicines) {
+      final medicineName = medicine['name'];
+      final requiredQuantity = medicine['quantity'];
+
+      final querySnapshot = await _firestore
+          .collection('medicine')
+          .where('name', isEqualTo: medicineName)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        final doc = querySnapshot.docs.first;
+        final currentStock = doc.get('stock') ?? 0;
+        final newStock = currentStock - requiredQuantity;
+
+        batch.update(doc.reference, {'stock': newStock});
+      }
+    }
+
+    await batch.commit(); // Commit all updates as a single batch
+  }
 }

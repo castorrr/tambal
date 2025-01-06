@@ -5,6 +5,7 @@ import 'package:tambal/services/realtime_database_service.dart';
 import 'package:tambal/models/patient.dart';
 import 'package:tambal/widgets/custom_patient_list_card.dart';
 import 'package:tambal/modals/modal_add_patient.dart';
+import 'package:tambal/modals/modal_patient_schedules.dart';
 
 class PatientsPage extends StatelessWidget {
   const PatientsPage({super.key});
@@ -79,11 +80,15 @@ class PatientsPage extends StatelessWidget {
                               firestoreService, realtimeDatabaseService);
                         },
                         onDispense: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                  'Dispensing medication for ${patient.name}'),
-                            ),
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return PatientSchedulesModal(
+                                patientId: patient.id,
+                                patientName: patient
+                                    .name, // Pass patient name for a better title
+                              );
+                            },
                           );
                         },
                       );

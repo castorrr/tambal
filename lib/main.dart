@@ -2,25 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:logger/logger.dart';
-
-import 'package:tambal/pages/auth/forgot_password.dart';
-import 'package:tambal/pages/dashboard/main_dashboard.dart';
 import 'package:tambal/pages/splash_screen.dart';
-import 'package:tambal/pages/welcome_page.dart';
-import 'package:tambal/pages/auth/login.dart';
-import 'package:tambal/pages/auth/signup.dart';
-import 'package:tambal/pages/dashboard/tabs/medicine_page.dart';
-import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
-import 'package:tambal/pages/dashboard/profile_page.dart';
 
-import 'package:tambal/providers/auth_provider.dart'; // AuthProvider
-import 'package:tambal/services/firestore_service.dart'; // FirestoreService
-import 'package:tambal/services/realtime_database_service.dart'; // RealtimeDatabaseService
+import 'pages/auth/login.dart';
+import 'pages/auth/signup.dart';
+import 'pages/auth/forgot_password.dart';
+import 'pages/dashboard/main_dashboard.dart';
+import 'pages/welcome_page.dart';
+import 'pages/dashboard/tabs/medicine_page.dart';
+import 'pages/dashboard/tabs/patients_page.dart';
+import 'pages/dashboard/profile_page.dart';
 
-import 'package:tambal/services/notification_service.dart';
+import 'providers/auth_provider.dart'; // AuthProvider
+import 'services/firestore_service.dart'; // FirestoreService
+import 'services/realtime_database_service.dart'; // RealtimeDatabaseService
+import 'services/notification_service.dart';
 
 final Logger logger = Logger();
 final notificationService = NotificationService();
+final realtimeDatabaseService = RealtimeDatabaseService();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +33,7 @@ void main() async {
   }
 
   try {
-    //initialize notification
+    // Initialize notifications
     notificationService.initialize();
     notificationService.startListeningForScheduleUpdates();
   } catch (e, stackTrace) {
@@ -52,7 +52,14 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-            create: (_) => AuthProvider()), // Auth state provider
+          create: (_) {
+            final authProvider = AuthProvider();
+            authProvider
+                .initializeCurrentUser(); // Initialize the user when the app starts
+            return authProvider;
+          },
+        ),
+        // Auth state provider
         Provider<FirestoreService>(
             create: (_) => FirestoreService()), // FirestoreService provider
         Provider<RealtimeDatabaseService>(
@@ -61,7 +68,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        title: 'Flutter Demo',
+        title: 'Tambal-PD',
         theme: ThemeData(
           primaryColor: const Color(0xFF3A86FF),
           scaffoldBackgroundColor: const Color(0xFFEDF2FB),
@@ -83,9 +90,8 @@ class MyApp extends StatelessWidget {
             backgroundColor: Color(0xFF3A86FF),
           ),
         ),
-        initialRoute: '/',
+        home: const SplashScreen(),
         routes: {
-          '/': (context) => const SplashScreen(),
           '/welcome': (context) => const WelcomePage(),
           '/login': (context) => const LoginPage(),
           '/signup': (context) => const SignupPage(),
