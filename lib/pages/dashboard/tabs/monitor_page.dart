@@ -56,7 +56,10 @@ class MonitorPage extends StatelessWidget {
                         patientName: log.patientName,
                         day: log.day,
                         time: log.time,
-                        medicineList: log.medicineList ?? [],
+                        medicineList: log.medicineList
+                                ?.map((item) => item.toString())
+                                .toList() ??
+                            [],
                       );
                     },
                   );

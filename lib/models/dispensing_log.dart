@@ -2,7 +2,7 @@ class DispensingLog {
   final String day;
   final String time;
   final String patientName;
-  final List<String>? medicineList;
+  final List<dynamic>? medicineList;
 
   DispensingLog({
     required this.day,

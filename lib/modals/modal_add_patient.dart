@@ -395,21 +395,17 @@ class AddPatientModalState extends State<AddPatientModal> {
 
       if (countdown <= 0) {
         timer.cancel();
-        if (mounted) {
-          Navigator.of(context).pop(); // Dismiss the prompt dialog
-        }
+        if (mounted) Navigator.of(context).pop(); // Dismiss the prompt dialog
         _showLoadingDialog(); // Show the loading dialog for fingerprint extraction
         _startFingerprintEnrollment(
-          timeoutTimer,
-          fingerprintExtracted,
-        ); // Start fingerprint enrollment
+            timeoutTimer, fingerprintExtracted); // Start fingerprint enrollment
       }
     });
   }
 
   void _startFingerprintEnrollment(
       Timer? timeoutTimer, bool fingerprintExtracted) async {
-    // Set a timeout for 15 seconds
+    // Set a timeout for 10 seconds
     timeoutTimer = Timer(const Duration(seconds: 15), () {
       if (!fingerprintExtracted && mounted) {
         Navigator.of(context).pop(); // Dismiss loading dialog
@@ -417,8 +413,8 @@ class AddPatientModalState extends State<AddPatientModal> {
         logger.e('Failed to extract fingerprint within the timeout period.');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to extract fingerprint. Please try again.'),
-          ),
+              content:
+                  Text('Failed to extract fingerprint. Please try again.')),
         );
       }
     });
@@ -445,10 +441,8 @@ class AddPatientModalState extends State<AddPatientModal> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}',
-              ),
-            ),
+                content: Text(
+                    '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}')),
           );
         }
       });
@@ -458,8 +452,8 @@ class AddPatientModalState extends State<AddPatientModal> {
         logger.e('Failed to extract fingerprint: $error');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to extract fingerprint. Please try again.'),
-          ),
+              content:
+                  Text('Failed to extract fingerprint. Please try again.')),
         );
       }
     }
@@ -469,13 +463,13 @@ class AddPatientModalState extends State<AddPatientModal> {
     if (!mounted) return; // Check if mounted before using `context`
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent dismissing the prompt
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            return AlertDialog(
+            return const AlertDialog(
               content: Text(
-                'Place your finger on the scanner to enroll your fingerprint.\nExtracting fingerprint in $countdown...',
+                'Place your finger on the scanner to enroll your fingerprint.\nExtracting fingerprint in 3 seconds...',
                 textAlign: TextAlign.center,
               ),
             );

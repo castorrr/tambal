@@ -144,35 +144,42 @@ class RealtimeDatabaseService {
 
   //dispensing listener
   Stream<List<DispensingLog>> streamDispensingLogs() {
-    // Reference to the dispensingLogs node
     DatabaseReference logRef = FirebaseDatabase.instance.ref('dispensingLogs');
 
-    // Listen to the entire dispensingLogs node
     return logRef.onValue.asyncMap((event) async {
       final data = event.snapshot.value;
 
       if (data != null && data is Map) {
-        // List to store the dispensing logs
         List<DispensingLog> dispensingLogs = [];
-
-        // Create an instance of FirestoreService
         final firestoreService = FirestoreService();
 
-        // Iterate through each entry in the dispensingLogs node
         for (var entry in data.entries) {
           final logData = Map<String, dynamic>.from(entry.value);
 
-          // Extract log data
           final day = logData['day'] ?? 'Unknown';
           final time = logData['time'] ?? 'Unknown';
           final patientName = logData['patientId'] ?? 'Unknown';
-
-          // Safely parse `isDispensed` as a bool
           final isDispensed = logData['isDispensed'] == 'true' ||
               logData['isDispensed'] == true;
 
           // Fetch the medicines array
-          final medicines = logData['medicines'] ?? [];
+          final medicines = logData['medicines'];
+
+          // Convert medicines to a list of maps, handle unexpected formats
+          List<Map<String, dynamic>> medicineList = [];
+          if (medicines is List) {
+            try {
+              // Ensure all items in the list are valid maps
+              medicineList = medicines
+                  .whereType<Map>()
+                  .map((medicine) => Map<String, dynamic>.from(medicine))
+                  .toList();
+            } catch (e) {
+              _logger.e('Invalid medicine data format: $medicines');
+            }
+          } else {
+            _logger.e('Medicines field is not a List: $medicines');
+          }
 
           // Add the log data to the dispensingLogs list
           dispensingLogs.add(
@@ -180,10 +187,9 @@ class RealtimeDatabaseService {
               day: day,
               time: time,
               patientName: patientName,
-              medicineList: medicines.isEmpty
-                  ? null
-                  : List<String>.from(
-                      medicines), // Convert to List<String> if necessary
+              medicineList: medicineList
+                  .map((medicine) => medicine['name']?.toString() ?? 'Unknown')
+                  .toList(),
             ),
           );
 
@@ -193,8 +199,10 @@ class RealtimeDatabaseService {
               List<Map<String, dynamic>> medicineData = [];
 
               // Fetch stock details for each medicine
-              for (String medicineName in List<String>.from(medicines)) {
-                // Use FirestoreService to query Firestore by name
+              for (var medicine in medicineList) {
+                final medicineName = medicine['name']?.toString() ?? 'Unknown';
+                final quantity = medicine['quantity'] ?? 0;
+
                 final medicineQuery = await FirebaseFirestore.instance
                     .collection('medicine')
                     .where('name', isEqualTo: medicineName)
@@ -204,10 +212,10 @@ class RealtimeDatabaseService {
                   final doc = medicineQuery.docs.first;
                   final currentStock = doc['stock'] ?? 0;
 
-                  if (currentStock > 0) {
+                  if (currentStock >= quantity) {
                     medicineData.add({
                       'name': medicineName,
-                      'quantity': 1, // Decrement by 1 for each dispense
+                      'quantity': quantity, // Decrement by this quantity
                       'currentStock': currentStock,
                       'docRef': doc.reference, // Store reference for updating
                     });
@@ -223,7 +231,6 @@ class RealtimeDatabaseService {
             });
           }
         }
-
         return dispensingLogs;
       } else {
         // Return an empty list if there's no data
