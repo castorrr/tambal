@@ -9,7 +9,7 @@ class AlertsPage extends StatelessWidget {
     // Dummy data for alerts
     final List<Map<String, dynamic>> alerts = [
       {
-        "patientName": "John Doe",
+        "patientName": "James Retubado",
         "patientGender": "Male",
         "patientAge": 45,
         "missedMedicine": "Paracetamol 500mg",
@@ -17,7 +17,7 @@ class AlertsPage extends StatelessWidget {
         "timeMissed": "10:00 AM",
       },
       {
-        "patientName": "Jane Smith",
+        "patientName": "Ronerr Villacarlos",
         "patientGender": "Female",
         "patientAge": 32,
         "missedMedicine": "Amoxicillin 250mg",
@@ -25,7 +25,7 @@ class AlertsPage extends StatelessWidget {
         "timeMissed": "8:00 PM",
       },
       {
-        "patientName": "Alice Johnson",
+        "patientName": "Jule Quijano",
         "patientGender": "Female",
         "patientAge": 60,
         "missedMedicine": "Ibuprofen 200mg",
@@ -36,7 +36,12 @@ class AlertsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Alerts'),
+        title: const Text(
+          'Alerts',
+          style: TextStyle(
+            color: Colors.white, // Replace with your desired color
+          ),
+        ),
         backgroundColor: Theme.of(context).primaryColor,
         centerTitle: true,
       ),
@@ -51,22 +56,6 @@ class AlertsPage extends StatelessWidget {
             missedMedicine: alert["missedMedicine"],
             dateMissed: alert["dateMissed"],
             timeMissed: alert["timeMissed"],
-            onAcknowledge: () {
-              // Handle Acknowledge logic here
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content:
-                        Text('Acknowledged alert for ${alert["patientName"]}')),
-              );
-            },
-            onDismiss: () {
-              // Handle Dismiss logic here
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content:
-                        Text('Dismissed alert for ${alert["patientName"]}')),
-              );
-            },
           );
         },
       ),

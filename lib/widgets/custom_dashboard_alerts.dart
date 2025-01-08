@@ -77,7 +77,7 @@ class _AlertListWidgetState extends State<AlertListWidget> {
 
         // PageView with increased height to fit content
         SizedBox(
-          height: 290, // Increased height to fit card and indicators
+          height: 240, // Increased height to fit card and indicators
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -96,12 +96,6 @@ class _AlertListWidgetState extends State<AlertListWidget> {
                       missedMedicine: alert['missedMedicine'] as String,
                       dateMissed: alert['dateMissed'] as String,
                       timeMissed: alert['timeMissed'] as String,
-                      onAcknowledge: () {
-                        // Acknowledge action
-                      },
-                      onDismiss: () {
-                        // Dismiss action
-                      },
                     ),
                   );
                 },

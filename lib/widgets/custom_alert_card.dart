@@ -7,8 +7,6 @@ class CustomAlertCard extends StatelessWidget {
   final String missedMedicine;
   final String dateMissed;
   final String timeMissed;
-  final VoidCallback onAcknowledge;
-  final VoidCallback onDismiss;
 
   const CustomAlertCard({
     super.key,
@@ -18,8 +16,6 @@ class CustomAlertCard extends StatelessWidget {
     required this.missedMedicine,
     required this.dateMissed,
     required this.timeMissed,
-    required this.onAcknowledge,
-    required this.onDismiss,
   });
 
   @override
@@ -97,28 +93,6 @@ class CustomAlertCard extends StatelessWidget {
                 const Icon(Icons.access_time, size: 16),
                 const SizedBox(width: 8),
                 Text('Time Missed: $timeMissed'),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                TextButton(
-                  onPressed: onAcknowledge,
-                  child: const Text(
-                    'Acknowledge',
-                    style: TextStyle(color: Colors.green),
-                  ),
-                ),
-                TextButton(
-                  onPressed: onDismiss,
-                  child: const Text(
-                    'Dismiss',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
               ],
             ),
           ],
