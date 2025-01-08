@@ -8,6 +8,7 @@ import 'pages/auth/login.dart';
 import 'pages/auth/signup.dart';
 import 'pages/auth/forgot_password.dart';
 import 'pages/dashboard/main_dashboard.dart';
+import 'pages/dashboard/alerts_page.dart';
 import 'pages/welcome_page.dart';
 import 'pages/dashboard/tabs/medicine_page.dart';
 import 'pages/dashboard/tabs/patients_page.dart';
@@ -100,6 +101,7 @@ class MyApp extends StatelessWidget {
           '/medicine-page': (context) => const MedicinePage(),
           '/patients-page': (context) => const PatientsPage(),
           '/profile-page': (context) => const ProfilePage(),
+          '/alerts-page': (context) => const AlertsPage(),
         },
       ),
     );

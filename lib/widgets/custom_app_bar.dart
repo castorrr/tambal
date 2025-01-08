@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:tambal/pages/dashboard/profile_page.dart'; // Importing the ProfilePage
+import 'package:tambal/pages/dashboard/alerts_page.dart'; // Importing the AlertsPage
 import 'package:tambal/providers/auth_provider.dart'; // Import AuthProvider
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -111,74 +112,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        // Notification bell icon with PopupMenu for notification list
-        Padding(
-          padding: const EdgeInsets.only(right: 0),
-          child: PopupMenuButton<String>(
-            icon: const Icon(Icons.notifications), // Notification bell icon
-            onSelected: (String result) {
-              // Handle notification click
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'notif1',
-                child: ListTile(
-                  leading: Icon(Icons.notification_important),
-                  title: Text('New medicine reminder'),
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'notif2',
-                child: ListTile(
-                  leading: Icon(Icons.notification_important),
-                  title: Text('Upcoming appointment'),
-                ),
-              ),
-              const PopupMenuItem<String>(
-                value: 'notif3',
-                child: ListTile(
-                  leading: Icon(Icons.notification_important),
-                  title: Text('Your prescription is ready'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Settings Icon with PopupMenu
+        // Notification bell icon
         Padding(
           padding: const EdgeInsets.only(right: 16.0),
-          child: PopupMenuButton<String>(
-            icon: const Icon(Icons.settings), // Settings icon in the app bar
-            onSelected: (String result) async {
-              if (result == 'Logout') {
-                // Capture the BuildContext at the beginning of the method
-                final BuildContext dialogContext = context;
-
-                // Show the logout dialog
-                final bool? shouldLogout = await showLogoutDialog();
-
-                if (shouldLogout == true && dialogContext.mounted) {
-                  // Call signOut to clear session
-                  final authProvider =
-                      Provider.of<AuthProvider>(dialogContext, listen: false);
-                  await authProvider.signOut();
-
-                  // Redirect to login page
-                  if (dialogContext.mounted) {
-                    Navigator.pushReplacementNamed(dialogContext, '/login');
-                  }
-                }
-              }
+          child: IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () {
+              // Navigate to AlertsPage
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AlertsPage()),
+              );
             },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'Logout',
-                child: ListTile(
-                  leading: Icon(Icons.logout),
-                  title: Text('Logout'),
-                ),
-              ),
-            ],
           ),
         ),
       ],
