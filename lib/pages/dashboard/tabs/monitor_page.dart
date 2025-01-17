@@ -78,13 +78,18 @@ class _MonitorPageState extends State<MonitorPage> {
             const SizedBox(height: 16), // Spacing between title and cards
 
             // Search Field
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                labelText: 'Search by name, day, time, or medicine',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+            Center(
+              child: SizedBox(
+                width: 320, // Set a fixed width for the search box
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    labelText: 'Search',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
                 ),
               ),
             ),
