@@ -238,4 +238,66 @@ class RealtimeDatabaseService {
       }
     });
   }
+
+  // Add this method to your RealtimeDatabaseService
+  Future<List<DispensingLog>> getDispensingLogsByPatient(
+      String patientName) async {
+    DatabaseReference logRef = _databaseRef.child('dispensingLogs');
+
+    try {
+      final DataSnapshot snapshot = await logRef.get();
+
+      if (snapshot.exists && snapshot.value is Map) {
+        final data = snapshot.value as Map;
+        List<DispensingLog> dispensingLogs = [];
+
+        for (var entry in data.entries) {
+          final logData = Map<String, dynamic>.from(entry.value);
+
+          final logPatientName = logData['patientId'] ?? 'Unknown';
+
+          // Match only logs for the specified patient
+          if (logPatientName == patientName) {
+            final day = logData['day'] ?? 'Unknown';
+            final time = logData['time'] ?? 'Unknown';
+
+            // Fetch the medicines array
+            final medicines = logData['medicines'] ?? [];
+            List<String> medicineList = [];
+
+            if (medicines is List) {
+              try {
+                medicineList = medicines
+                    .whereType<Map>()
+                    .map(
+                        (medicine) => medicine['name']?.toString() ?? 'Unknown')
+                    .toList();
+              } catch (e) {
+                _logger.e('Invalid medicine data format: $medicines');
+              }
+            }
+
+            dispensingLogs.add(
+              DispensingLog(
+                day: day,
+                time: time,
+                patientName: logPatientName,
+                medicineList: medicineList,
+              ),
+            );
+          }
+        }
+
+        _logger.i(
+            'Fetched ${dispensingLogs.length} logs for patient: $patientName');
+        return dispensingLogs;
+      } else {
+        _logger.w('No logs found for patient: $patientName');
+        return [];
+      }
+    } catch (e) {
+      _logger.e('Failed to fetch dispensing logs for patient $patientName: $e');
+      return [];
+    }
+  }
 }

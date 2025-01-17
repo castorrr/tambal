@@ -5,7 +5,7 @@ import 'package:tambal/services/realtime_database_service.dart';
 import 'package:tambal/models/patient.dart';
 import 'package:tambal/widgets/custom_patient_list_card.dart';
 import 'package:tambal/modals/modal_add_patient.dart';
-import 'package:tambal/modals/modal_patient_schedules.dart';
+import 'package:tambal/modals/modal_patient_information.dart';
 
 class PatientsPage extends StatelessWidget {
   const PatientsPage({super.key});
@@ -68,27 +68,36 @@ class PatientsPage extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final patient = patients[index];
                       return CustomPatientListCard(
-                        name: patient
-                            .name, // Removed '??' since it's non-nullable
+                        name: patient.name,
                         gender: patient.gender,
                         age: patient.age,
                         onEdit: () {
                           _showEditPatientModal(context, patient);
                         },
                         onDelete: () {
-                          _showDeleteConfirmation(context, patient.id,
-                              firestoreService, realtimeDatabaseService);
+                          _showDeleteConfirmation(
+                            context,
+                            patient.id,
+                            firestoreService,
+                            realtimeDatabaseService,
+                          );
                         },
-                        onDispense: () {
-                          showDialog(
+                        onTap: () {
+                          // Show Patient Information Modal
+                          showModalBottomSheet(
                             context: context,
-                            builder: (BuildContext context) {
-                              return PatientSchedulesModal(
-                                patientId: patient.id,
-                                patientName: patient
-                                    .name, // Pass patient name for a better title
-                              );
-                            },
+                            isScrollControlled: true,
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(20),
+                              ),
+                            ),
+                            builder: (context) => PatientInformationModal(
+                              patientName: patient.name,
+                              patientAge: patient.age,
+                              patientGender: patient.gender,
+                              patientId: patient.id,
+                            ),
                           );
                         },
                       );
@@ -182,17 +191,19 @@ class PatientsPage extends StatelessWidget {
 
   /// Show the Delete Confirmation Dialog
   void _showDeleteConfirmation(
-      BuildContext context,
-      String patientId,
-      FirestoreService firestoreService,
-      RealtimeDatabaseService realtimeDatabaseService) async {
+    BuildContext context,
+    String patientId,
+    FirestoreService firestoreService,
+    RealtimeDatabaseService realtimeDatabaseService,
+  ) async {
     final confirmDelete = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Patient'),
           content: const Text(
-              'Are you sure you want to delete this patient and all their schedules?'),
+            'Are you sure you want to delete this patient and all their schedules?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
@@ -219,7 +230,8 @@ class PatientsPage extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Patient and associated schedules deleted successfully.'),
+                'Patient and associated schedules deleted successfully.',
+              ),
             ),
           );
         }
