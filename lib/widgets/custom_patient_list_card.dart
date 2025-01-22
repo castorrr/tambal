@@ -38,6 +38,16 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
     return initials.toUpperCase();
   }
 
+  // Function to convert gender to its abbreviation
+  String getGenderAbbreviation(String gender) {
+    if (gender.toLowerCase() == 'male') {
+      return 'M';
+    } else if (gender.toLowerCase() == 'female') {
+      return 'F';
+    }
+    return gender; // Return original value if it's neither "male" nor "female"
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -117,7 +127,7 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
                       Row(
                         children: [
                           Text(
-                            'Gender: ${widget.gender}',
+                            'Gender: ${getGenderAbbreviation(widget.gender)}',
                             style: const TextStyle(
                               fontSize:
                                   14, // Slightly larger text size for details
