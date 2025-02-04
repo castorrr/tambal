@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Import Provider
 import 'package:tambal/pages/dashboard/profile_page.dart'; // Importing the ProfilePage
 import 'package:tambal/pages/dashboard/alerts_page.dart'; // Importing the AlertsPage
+import 'package:tambal/pages/dashboard/wifi_page.dart';
 import 'package:tambal/providers/auth_provider.dart'; // Import AuthProvider
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -112,6 +113,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 0),
+          child: IconButton(
+            icon: const Icon(Icons.wifi),
+            onPressed: () {
+              // Navigate to AlertsPage
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const WifiConfigPage()),
+              );
+            },
+          ),
+        ),
         // Notification bell icon
         Padding(
           padding: const EdgeInsets.only(right: 16.0),
