@@ -17,7 +17,7 @@ class MedicinePage extends StatefulWidget {
 
 class MedicinePageState extends State<MedicinePage> {
   final Logger logger = Logger();
-  List<int> availableSlots = [];
+  List<int> availableSlots = [1, 2, 3]; // Initialize with all slots available
 
   Future<void> _handleDispense(Medicine medicine) async {
     if (!mounted) return;
@@ -61,10 +61,10 @@ class MedicinePageState extends State<MedicinePage> {
       if (success) {
         await firestoreService.decrementStock(medicine.id, 1);
 
-        logger.i(
+        _showSnackBar(
             'Medicine dispensed successfully from slot ${medicine.slot}. Stock updated.');
       } else {
-        logger.e('Unsuccessful dispensing. Slot ${medicine.slot} reset to 0.');
+        _showSnackBar('Unsuccessful dispensing');
       }
 
       // Ensure the dialog is closed
@@ -151,6 +151,9 @@ class MedicinePageState extends State<MedicinePage> {
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            // Reset availableSlots to [1, 2, 3] when no medicines are present
+            availableSlots = [1, 2, 3];
+
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(20.0),

@@ -4,10 +4,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/schedule.dart';
 import 'package:tambal/models/dispensing_log.dart';
+import 'dart:async';
 
 class RealtimeDatabaseService {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
   final Logger _logger = Logger();
+  StreamSubscription? _fingerprintListener;
 
   // Method to set the dispense slot
   Future<void> setDispenseSlot(int slot) async {
@@ -38,7 +40,6 @@ class RealtimeDatabaseService {
     }
   }
 
-  // Method to trigger fingerprint enrollment
   Future<void> triggerFingerprintEnrollment() async {
     try {
       await _databaseRef.child('fingerprintCommand').set({
@@ -55,7 +56,12 @@ class RealtimeDatabaseService {
 
   // Method to listen for the fingerprint ID result
   void listenForFingerprintID(Function(String id) onResult) {
-    _databaseRef.child('fingerprintCommand/status').onValue.listen((event) {
+    StreamSubscription? subscription;
+    Timer? timeoutTimer;
+
+    // Start listening to Firebase database changes
+    subscription =
+        _databaseRef.child('fingerprintCommand/status').onValue.listen((event) {
       if (event.snapshot.value == 'done') {
         _databaseRef.child('fingerprintCommand/id').once().then((snapshot) {
           final String? fingerprintID = snapshot.snapshot.value as String?;
@@ -64,9 +70,20 @@ class RealtimeDatabaseService {
             _logger
                 .i('Fingerprint enrolled successfully with ID: $fingerprintID');
             resetFingerprintCommand();
+
+            // Cancel the subscription and timer as the result is found
+            subscription?.cancel();
+            timeoutTimer?.cancel();
           }
         });
       }
+    });
+
+    // Set up a timer to cancel the subscription after 15 seconds
+    timeoutTimer = Timer(const Duration(seconds: 15), () {
+      subscription?.cancel();
+      _logger.w('Fingerprint enrollment timeout.');
+      onResult('timeout'); // Callback to indicate a timeout
     });
   }
 
@@ -75,7 +92,7 @@ class RealtimeDatabaseService {
     try {
       await _databaseRef.child('fingerprintCommand').set({
         'command': 'none',
-        'id': 0,
+        'id': '0',
         'status': 'idle',
       });
       _logger.i('Fingerprint command reset to default values');
@@ -84,7 +101,11 @@ class RealtimeDatabaseService {
     }
   }
 
-  // Method to sync a single schedule to the Realtime Database
+  void dispose() {
+    _fingerprintListener?.cancel();
+    _logger.i('Fingerprint listener canceled');
+  }
+
   // Function to sync a schedule to the Realtime Database
   Future<void> syncSchedule(Schedule schedule) async {
     try {

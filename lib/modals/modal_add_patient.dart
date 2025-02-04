@@ -37,6 +37,9 @@ class AddPatientModalState extends State<AddPatientModal> {
   bool everyDaySelected = false;
   List<String> fingerprintIDs = [];
   bool isLoading = false; // Track the loading state
+  bool isFingerprintLoading = false;
+  bool _isLoadingDialogOpen = false; // Track if the loading dialog is open
+
 // List to store fingerprint IDs
 
   @override
@@ -48,6 +51,13 @@ class AddPatientModalState extends State<AddPatientModal> {
       selectedGender = widget.patient!.gender;
       _loadSchedules(widget.patient!.id);
     }
+  }
+
+  @override
+  void dispose() {
+    // Dispose of the RealtimeDatabaseService listener
+    realtimeDatabaseService.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSchedules(String patientId) async {
@@ -374,113 +384,71 @@ class AddPatientModalState extends State<AddPatientModal> {
         .toList();
   }
 
-  void _extractFingerprint() async {
-    bool fingerprintExtracted = false;
-    Timer? timeoutTimer;
-
-    // Show "Place your fingerprint" dialog with countdown
-    int countdown = 3;
-    _showFingerprintPromptDialog(countdown);
-
-    // Countdown logic
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-
-      setState(() {
-        countdown--;
-      });
-
-      if (countdown <= 0) {
-        timer.cancel();
-        if (mounted) Navigator.of(context).pop(); // Dismiss the prompt dialog
-        _showLoadingDialog(); // Show the loading dialog for fingerprint extraction
-        _startFingerprintEnrollment(
-            timeoutTimer, fingerprintExtracted); // Start fingerprint enrollment
-      }
-    });
+  void _extractFingerprint() {
+    if (!mounted) return;
+    _startFingerprintEnrollment(); // Directly starts the fingerprint enrollment
   }
 
-  void _startFingerprintEnrollment(
-      Timer? timeoutTimer, bool fingerprintExtracted) async {
-    // Set a timeout for 10 seconds
-    timeoutTimer = Timer(const Duration(seconds: 15), () {
-      if (!fingerprintExtracted && mounted) {
-        Navigator.of(context).pop(); // Dismiss loading dialog
-        realtimeDatabaseService.resetFingerprintCommand();
-        logger.e('Failed to extract fingerprint within the timeout period.');
+  void _startFingerprintEnrollment() {
+    if (!mounted || isFingerprintLoading) return;
+
+    setState(() {
+      isFingerprintLoading = true;
+    });
+
+    _showLoadingDialog(); // Show the loading dialog immediately
+
+    // Timer for timeout in case fingerprint enrollment fails
+    Timer? timeoutTimer = Timer(const Duration(seconds: 15), () async {
+      if (mounted) {
+        _closeLoadingDialog(); // Close the loading dialog
+        setState(() {
+          isFingerprintLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('Failed to extract fingerprint. Please try again.')),
+            content: Text('Failed to extract fingerprint. Please try again.'),
+          ),
         );
+        await realtimeDatabaseService.resetFingerprintCommand();
       }
     });
 
-    try {
-      await realtimeDatabaseService.triggerFingerprintEnrollment();
+    // Trigger fingerprint enrollment via ESP32/RTDB
+    realtimeDatabaseService.triggerFingerprintEnrollment();
 
-      // Listen for the fingerprint ID result
-      realtimeDatabaseService.listenForFingerprintID((String id) {
-        if (!mounted || fingerprintExtracted) return; // Ensure `mounted` check
+    // Listen for fingerprint ID updates
+    realtimeDatabaseService.listenForFingerprintID((String id) async {
+      if (!mounted || !isFingerprintLoading) return;
 
-        fingerprintExtracted = true; // Set flag
-        timeoutTimer?.cancel(); // Cancel the timeout timer
+      // Stop the timeout timer as we have received a result
+      timeoutTimer.cancel();
 
-        if (mounted) {
-          Navigator.of(context).pop(); // Dismiss loading dialog
-        }
+      // Reset fingerprint command to ensure the database is in a clean state
+      await realtimeDatabaseService.resetFingerprintCommand();
+
+      if (mounted) {
+        _closeLoadingDialog(); // Close the loading dialog
 
         setState(() {
-          fingerprintIDs.add(id); // Add the new fingerprint ID
+          isFingerprintLoading = false;
+          fingerprintIDs.add(id); // Save the fingerprint ID
         });
 
-        logger.i('Fingerprint enrolled successfully with ID: $id');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    '${fingerprintIDs.length} ${fingerprintIDs.length == 1 ? "fingerprint added" : "fingerprints added"}')),
-          );
-        }
-      });
-    } catch (error) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Dismiss loading dialog
-        logger.e('Failed to extract fingerprint: $error');
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Failed to extract fingerprint. Please try again.')),
+          SnackBar(
+            content: Text(
+                'Fingerprint added successfully! Total fingerprints: ${fingerprintIDs.length}'),
+          ),
         );
       }
-    }
-  }
-
-  void _showFingerprintPromptDialog(int countdown) {
-    if (!mounted) return; // Check if mounted before using `context`
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return const AlertDialog(
-              content: Text(
-                'Place your finger on the scanner to enroll your fingerprint.\nExtracting fingerprint in 3 seconds...',
-                textAlign: TextAlign.center,
-              ),
-            );
-          },
-        );
-      },
-    );
+    });
   }
 
   void _showLoadingDialog() {
-    if (!mounted) return; // Check if mounted before using `context`
+    if (!mounted) return;
+    _isLoadingDialogOpen = true; // Mark dialog as open
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -498,8 +466,15 @@ class AddPatientModalState extends State<AddPatientModal> {
     );
   }
 
+  void _closeLoadingDialog() {
+    if (_isLoadingDialogOpen && mounted) {
+      Navigator.of(context).pop(); // Pop the nearest dialog
+      _isLoadingDialogOpen = false; // Mark dialog as closed
+    }
+  }
+
   void _showPatientLoadingDialog() {
-    if (!mounted) return; // Check if mounted before using `context`
+    if (!mounted) return; // Check if mounted before using context
     showDialog(
       context: context,
       barrierDismissible: false,
