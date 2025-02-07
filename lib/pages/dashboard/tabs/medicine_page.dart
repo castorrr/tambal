@@ -17,7 +17,7 @@ class MedicinePage extends StatefulWidget {
 
 class MedicinePageState extends State<MedicinePage> {
   final Logger logger = Logger();
-  List<int> availableSlots = [1, 2, 3]; // Initialize with all slots available
+  List<int> availableSlots = [1, 2, 3, 4, 5]; // Updated to include slots 1 to 5
 
   Future<void> _handleDispense(Medicine medicine) async {
     if (!mounted) return;
@@ -151,8 +151,8 @@ class MedicinePageState extends State<MedicinePage> {
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            // Reset availableSlots to [1, 2, 3] when no medicines are present
-            availableSlots = [1, 2, 3];
+            // Reset availableSlots to [1, 2, 3, 4, 5] when no medicines are present
+            availableSlots = [1, 2, 3, 4, 5];
 
             return Center(
               child: Padding(
@@ -171,8 +171,9 @@ class MedicinePageState extends State<MedicinePage> {
           medicines.sort((a, b) => a.slot.compareTo(b.slot));
           List<int> takenSlots =
               medicines.map((medicine) => medicine.slot).toList();
-          availableSlots =
-              [1, 2, 3].where((slot) => !takenSlots.contains(slot)).toList();
+          availableSlots = [1, 2, 3, 4, 5]
+              .where((slot) => !takenSlots.contains(slot))
+              .toList();
 
           return ListView(
             padding: const EdgeInsets.all(16.0),
@@ -193,7 +194,8 @@ class MedicinePageState extends State<MedicinePage> {
       floatingActionButton: StreamBuilder<List<Medicine>>(
         stream: firestoreService.getMedicines(),
         builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data!.length < 3) {
+          if (snapshot.hasData && snapshot.data!.length < 5) {
+            // Updated condition to check if medicines are less than 5
             return FloatingActionButton.extended(
               onPressed: () {
                 if (mounted) {
