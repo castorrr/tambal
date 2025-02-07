@@ -78,6 +78,24 @@ class AddPatientModalState extends State<AddPatientModal> {
     }
   }
 
+  String _formatDays(List<String> days) {
+    const List<String> allDays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+
+    // If all seven days are selected, display "Everyday"
+    if (days.length == 7 && days.toSet().containsAll(allDays)) {
+      return "Everyday";
+    }
+    return days.join(", ");
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -118,7 +136,7 @@ class AddPatientModalState extends State<AddPatientModal> {
                   margin: const EdgeInsets.symmetric(vertical: 5),
                   child: ListTile(
                     title: Text(
-                      'Schedule ${index + 1}: ${schedule['days'].join(", ")} at ${schedule['time']}',
+                      'Schedule ${index + 1}: ${_formatDays(schedule['days'])} at ${schedule['time']}',
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +371,18 @@ class AddPatientModalState extends State<AddPatientModal> {
               setState(() {
                 schedules.add({
                   'id': null,
-                  'days': everyDaySelected ? ['Everyday'] : _getSelectedDays(),
+                  // If everyday is selected, add all 7 days explicitly
+                  'days': everyDaySelected
+                      ? [
+                          'Monday',
+                          'Tuesday',
+                          'Wednesday',
+                          'Thursday',
+                          'Friday',
+                          'Saturday',
+                          'Sunday'
+                        ]
+                      : _getSelectedDays(),
                   'time': time.format(context),
                   'medicines': selectedMedicines,
                   'fingerprintIDs': [], // Initialize with an empty list
