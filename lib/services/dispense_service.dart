@@ -17,7 +17,7 @@ class DispenseService {
       logger.i('Slot $slot set for dispensing');
 
       // Wait for 5 seconds
-      await Future.delayed(const Duration(seconds: 5));
+      await Future.delayed(const Duration(seconds: 10));
 
       // Check if the dispense slot is still set
       int? currentSlot = await realtimeDatabaseService.getDispenseSlot();
