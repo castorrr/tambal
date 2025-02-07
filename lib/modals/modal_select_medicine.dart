@@ -19,12 +19,17 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
 
   @override
   Widget build(BuildContext context) {
+    // Sort medicines by slot before displaying
+    List<Map<String, String>> sortedMedicines = List.from(
+        widget.availableMedicines)
+      ..sort((a, b) => int.parse(a['slot']!).compareTo(int.parse(b['slot']!)));
+
     return AlertDialog(
       title: const Text('Select Medicines, Slots, and Quantity'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: widget.availableMedicines.map((medicine) {
+          children: sortedMedicines.map((medicine) {
             final slot = medicine['slot']!;
             final name = medicine['name']!;
 
@@ -45,14 +50,12 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
                   onChanged: (bool? value) {
                     setState(() {
                       if (value == true) {
-                        // Add the medicine if selected
                         tempSelectedMedicines.add({
                           'slot': slot,
                           'name': name,
-                          'quantity': quantity, // Initial quantity set to 1
+                          'quantity': quantity,
                         });
                       } else {
-                        // Remove the medicine if unselected
                         tempSelectedMedicines.removeWhere(
                           (m) => m['name'] == name && m['slot'] == slot,
                         );

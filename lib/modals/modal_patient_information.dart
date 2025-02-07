@@ -23,6 +23,15 @@ class PatientInformationModal extends StatelessWidget {
     required this.patientId,
   });
 
+  // Function to get gender-based image
+  String getGenderImage(String gender) {
+    if (gender.toLowerCase() == 'male') {
+      return 'assets/images/Male.png';
+    } else {
+      return 'assets/images/Female.png';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -61,16 +70,43 @@ class PatientInformationModal extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      getInitials(patientName),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
-                      ),
+                  // 🔹 Centering the CircleAvatar properly
+                  Center(
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 90, // Ensures it's a circle
+                          height: 90,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white, // Background color
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26, // Soft shadow
+                                blurRadius: 6,
+                                offset: Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          top: -3, // Move up slightly for the pop-out effect
+                          left: 0,
+                          right: 0,
+                          child: ClipOval(
+                            child: Image.asset(
+                              getGenderImage(
+                                  patientGender), // Load the correct gender image
+                              width:
+                                  85, // Must match height to keep it a perfect circle
+                              height: 92,
+                              fit: BoxFit
+                                  .cover, // Ensures it fills without distortion
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -106,6 +142,7 @@ class PatientInformationModal extends StatelessWidget {
                 ],
               ),
             ),
+
             // Tab Bar
             const TabBar(
               labelColor: Colors.black,
@@ -361,7 +398,7 @@ class ScheduleTab extends StatelessWidget {
           itemBuilder: (context, index) {
             final schedule = schedules[index];
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               child: CustomScheduleCard(
                 schedule: schedule,
                 onTap: () => _confirmDispense(context, schedule),
@@ -401,7 +438,7 @@ class ActivityTab extends StatelessWidget {
           itemBuilder: (context, index) {
             final log = logs[index];
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               child: RecentPatientCard(
                 patientName: log.patientName,
                 day: log.day,

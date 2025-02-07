@@ -20,7 +20,7 @@ class MedicineSlotSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
               Text(
-                'Medicine Slot',
+                'Medicine',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       color: Theme.of(context).primaryColor,
                       fontWeight: FontWeight.w600,

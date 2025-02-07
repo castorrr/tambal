@@ -7,8 +7,22 @@ import 'package:tambal/widgets/custom_patient_list_card.dart';
 import 'package:tambal/modals/modal_add_patient.dart';
 import 'package:tambal/modals/modal_patient_information.dart';
 
-class PatientsPage extends StatelessWidget {
+class PatientsPage extends StatefulWidget {
   const PatientsPage({super.key});
+
+  @override
+  PatientsPageState createState() => PatientsPageState();
+}
+
+class PatientsPageState extends State<PatientsPage> {
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,24 +31,57 @@ class PatientsPage extends StatelessWidget {
         Provider.of<RealtimeDatabaseService>(context, listen: false);
 
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: Theme.of(context)
+            .scaffoldBackgroundColor, // Matches the background color
+        elevation: 0, // Removes shadow for a seamless look
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search patients...',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  setState(() {});
+                },
+              )
+            : Row(
+                children: [
+                  const Icon(Icons.people, size: 28, color: Colors.blue),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Patients',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          color: Theme.of(context).primaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ),
+        actions: [
+          IconButton(
+            padding: const EdgeInsets.only(
+                right: 8.0), // Adjust this value as needed
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _searchController.clear();
+                }
+              });
+            },
+          ),
+        ],
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.only(top: 0, left: 16.0, right: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.people, size: 28, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  'Patients',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Theme.of(context).primaryColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
             const SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<List<Patient>>(
@@ -62,7 +109,18 @@ class PatientsPage extends StatelessWidget {
                     );
                   }
 
-                  final patients = snapshot.data!;
+                  List<Patient> patients = snapshot.data!;
+                  patients.sort((a, b) =>
+                      a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+                  if (_isSearching && _searchController.text.isNotEmpty) {
+                    patients = patients
+                        .where((patient) => patient.name
+                            .toLowerCase()
+                            .contains(_searchController.text.toLowerCase()))
+                        .toList();
+                  }
+
                   return ListView.builder(
                     itemCount: patients.length,
                     itemBuilder: (context, index) {
