@@ -2,7 +2,7 @@ class DispensingLog {
   final String day;
   final String time;
   final String patientName;
-  final List<dynamic>? medicineList;
+  final List<String> medicineList;
 
   DispensingLog({
     required this.day,
@@ -11,17 +11,17 @@ class DispensingLog {
     required this.medicineList,
   });
 
-  factory DispensingLog.fromCombinedData({
-    required String day,
-    required String time,
-    required String patientName,
-    required List<dynamic> medicines,
-  }) {
+  /// 🔹 Convert Firestore document data into a DispensingLog instance
+  factory DispensingLog.fromFirestore(Map<String, dynamic> data) {
     return DispensingLog(
-      day: day,
-      time: time,
-      patientName: patientName,
-      medicineList: medicines.map((e) => e['name'] as String).toList(),
+      day: data['day'] ?? 'Unknown',
+      time: data['time'] ?? 'Unknown',
+      patientName: data['patientId'] ?? 'Unknown',
+      medicineList: (data['medicines'] as List<dynamic>?)
+              ?.map((medicine) =>
+                  medicine['medicineName']?.toString() ?? 'Unknown')
+              .toList() ??
+          [], // Default to empty list if medicines is null
     );
   }
 }

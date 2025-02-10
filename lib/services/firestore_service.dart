@@ -1,9 +1,11 @@
 // File: services/firestore_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/medicine.dart';
 import 'package:tambal/models/patient.dart';
 import 'package:tambal/models/schedule.dart';
+import 'package:tambal/models/dispensing_log.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -364,27 +366,302 @@ class FirestoreService {
     return true; // All stocks are sufficient
   }
 
-  Future<void> updateStocksByName(List<Map<String, dynamic>> medicines) async {
-    final batch = _firestore.batch();
+  Future<void> updateStocksBySlot(List<Map<String, dynamic>> medicines) async {
+    try {
+      Map<int, int> slotDecrements = {}; // Track total decrement per slot
 
-    for (final medicine in medicines) {
-      final medicineName = medicine['name'];
-      final requiredQuantity = medicine['quantity'];
+      // Step 1: Accumulate decrements per slot
+      for (final medicine in medicines) {
+        final int slotNumber = (medicine['slot'] is int)
+            ? medicine['slot']
+            : int.tryParse(medicine['slot'].toString()) ?? 0;
 
-      final querySnapshot = await _firestore
-          .collection('medicine')
-          .where('name', isEqualTo: medicineName)
+        final int requiredQuantity = (medicine['quantity'] is int)
+            ? medicine['quantity']
+            : int.tryParse(medicine['quantity'].toString()) ?? 0;
+
+        if (slotNumber == 0 || requiredQuantity == 0) {
+          _logger.w('Skipping invalid medicine entry: $medicine');
+          continue; // Skip invalid data
+        }
+
+        slotDecrements[slotNumber] =
+            (slotDecrements[slotNumber] ?? 0) + requiredQuantity;
+        _logger.i(
+            'Slot $slotNumber: Adding quantity $requiredQuantity to decrement');
+      }
+
+      _logger.i('Final slot decrements: $slotDecrements');
+
+      // Step 2: Apply total decrements for each slot
+      for (final entry in slotDecrements.entries) {
+        final int slotNumber = entry.key;
+        final int totalQuantityToDeduct = entry.value;
+
+        _logger.i(
+            'Processing slot $slotNumber - Deducting $totalQuantityToDeduct units');
+
+        final querySnapshot = await _firestore
+            .collection('medicine')
+            .where('slot', isEqualTo: slotNumber)
+            .get();
+
+        if (querySnapshot.docs.isEmpty) {
+          _logger.e('No medicine found for slot $slotNumber');
+          continue;
+        }
+
+        for (final doc in querySnapshot.docs) {
+          final int currentStock = (doc.get('stock') is int)
+              ? doc.get('stock')
+              : int.tryParse(doc.get('stock').toString()) ?? 0;
+
+          final String medicineName = doc.get('name') ?? 'Unknown Medicine';
+
+          final int newStock = (currentStock - totalQuantityToDeduct)
+              .clamp(0, currentStock); // Prevent negative stock
+
+          _logger.i('Updating $medicineName (Slot $slotNumber):');
+          _logger.i('Current stock: $currentStock');
+          _logger.i('Deducting: $totalQuantityToDeduct');
+          _logger.i('New stock will be: $newStock');
+
+          // Use transaction for atomic update
+          await _firestore.runTransaction((transaction) async {
+            final docRef = doc.reference;
+            final snapshot = await transaction.get(docRef);
+
+            if (!snapshot.exists) {
+              throw Exception('Document does not exist!');
+            }
+
+            final int currentStockInTransaction = (snapshot.get('stock') is int)
+                ? snapshot.get('stock')
+                : int.tryParse(snapshot.get('stock').toString()) ?? 0;
+
+            final int newStockInTransaction =
+                (currentStockInTransaction - totalQuantityToDeduct)
+                    .clamp(0, currentStockInTransaction);
+
+            transaction.update(docRef, {'stock': newStockInTransaction});
+          });
+
+          _logger.i('✅ Successfully updated stock for $medicineName');
+        }
+      }
+    } catch (e, stackTrace) {
+      _logger.e('⛔ Error updating stock: $e');
+      _logger.e('Stack trace: $stackTrace');
+      throw Exception('Failed to update stock: $e');
+    }
+  }
+
+  //Analytics
+  Stream<int> getTotalPatients() {
+    return _firestore.collection('patients').snapshots().map((snapshot) {
+      return snapshot.docs.length; // Count total patients
+    });
+  }
+
+  Stream<int> getMedicineTypes() {
+    return _firestore.collection('medicine').snapshots().map((snapshot) {
+      return snapshot.docs.length; // Total medicines
+    });
+  }
+
+  Stream<String> getLowestStockMedicine() {
+    return _firestore
+        .collection('medicine')
+        .orderBy('stock') // Sort by lowest stock first
+        .limit(1) // Only fetch one document
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) return "No Medicines";
+      return snapshot.docs.first.get('name') ?? "Unknown"; // Fetch only 'name'
+    });
+  }
+
+  Stream<Map<String, String>?> getUpcomingSchedule() {
+    String today = DateFormat('EEEE').format(DateTime.now()); // e.g., "Tuesday"
+
+    return _firestore
+        .collection('schedules')
+        .where('days',
+            arrayContains: today) // ✅ Filter schedules only for today
+        .orderBy('time') // ✅ Order by time
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) {
+        return null;
+      }
+
+      DateTime now = DateTime.now();
+      int currentTimeInt = _convertTimeToInt(DateFormat('h:mm a').format(now));
+
+      for (var doc in snapshot.docs) {
+        var data = doc.data();
+        String scheduleTimeStr = data['time'] ?? "--";
+        int scheduleTimeInt = _convertTimeToInt(scheduleTimeStr);
+
+        if (scheduleTimeInt > currentTimeInt) {
+          // ✅ Only return schedules that are in the future
+          return {
+            'patientName': data['patientName'] ?? "Unknown",
+            'time': scheduleTimeStr,
+          };
+        }
+      }
+
+      // ✅ If no future schedules exist, return null
+      return null;
+    });
+  }
+
+  // 🔹 Convert "10:11 PM" to an int (e.g., 2211) for easier comparison
+  int _convertTimeToInt(String timeStr) {
+    try {
+      DateTime parsedTime = DateFormat("h:mm a").parse(timeStr);
+      return int.parse(DateFormat('HHmm').format(parsedTime)); // "2211"
+    } catch (e) {
+      return 0; // Return 0 if parsing fails
+    }
+  }
+
+  Stream<List<DispensingLog>> streamDispensingLogs(
+      {required String collectionName}) {
+    return _firestore
+        .collection(collectionName)
+        .orderBy('timestamp', descending: true) // 🔹 Order by newest first
+        .snapshots()
+        .map((snapshot) {
+      List<DispensingLog> dispensingLogs = [];
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+
+        final day = data['day'] ?? 'Unknown';
+        final time = data['time'] ?? 'Unknown';
+        final patientName = data['patientName'] ?? 'Unknown';
+
+        // Fetch the medicines array
+        final medicines = data['medicines'] ?? [];
+        List<Map<String, dynamic>> medicineList = [];
+
+        if (medicines is List) {
+          try {
+            medicineList = medicines
+                .whereType<Map<String, dynamic>>() // Ensure type safety
+                .toList();
+          } catch (e) {
+            _logger.i('❌ Invalid medicine data format: $medicines');
+          }
+        } else {
+          _logger.i('❌ Medicines field is not a List: $medicines');
+        }
+
+        // Add the log data to the list
+        dispensingLogs.add(
+          DispensingLog(
+            day: day,
+            time: time,
+            patientName: patientName,
+            medicineList: medicineList
+                .map((medicine) =>
+                    medicine['medicineName']?.toString() ?? 'Unknown')
+                .toList(),
+          ),
+        );
+      }
+
+      return dispensingLogs;
+    });
+  }
+
+  Future<List<DispensingLog>> getDispensingLogsByPatient(
+      String patientId) async {
+    try {
+      List<DispensingLog> dispensingLogs = [];
+
+      // Fetch from `logging` collection
+      QuerySnapshot loggingSnapshot = await _firestore
+          .collection('logging')
+          .where('patientId',
+              isEqualTo: patientId) // 🔹 Ensure patientId filter
+          .orderBy('timestamp', descending: true) // 🔹 Sort by latest first
           .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final doc = querySnapshot.docs.first;
-        final currentStock = doc.get('stock') ?? 0;
-        final newStock = currentStock - requiredQuantity;
+      // Fetch from `alerts` collection
+      QuerySnapshot alertsSnapshot = await _firestore
+          .collection('alerts')
+          .where('patientId',
+              isEqualTo: patientId) // 🔹 Ensure patientId filter
+          .orderBy('timestamp', descending: true)
+          .get();
 
-        batch.update(doc.reference, {'stock': newStock});
+      // Combine results
+      List<QueryDocumentSnapshot> allDocs = [
+        ...loggingSnapshot.docs,
+        ...alertsSnapshot.docs
+      ];
+
+      if (allDocs.isEmpty) {
+        return []; // Return empty list if no data
       }
-    }
 
-    await batch.commit(); // Commit all updates as a single batch
+      // Parse documents into DispensingLog objects
+      for (var doc in allDocs) {
+        final data = doc.data() as Map<String, dynamic>;
+
+        final day = data['day'] ?? 'Unknown';
+        final time = data['time'] ?? 'Unknown';
+
+        // Extract medicines list safely
+        final medicines = data['medicines'] ?? [];
+        List<String> medicineList = medicines is List
+            ? medicines
+                .whereType<Map<String, dynamic>>()
+                .map((medicine) =>
+                    medicine['medicineName']?.toString() ?? 'Unknown')
+                .toList()
+            : [];
+
+        // Add to list
+        dispensingLogs.add(DispensingLog(
+          day: day,
+          time: time,
+          patientName: data['patientName'] ?? 'Unknown',
+          medicineList: medicineList,
+        ));
+      }
+
+      return dispensingLogs;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Stream<DispensingLog?> getMostRecentPatientAlert() {
+    return _firestore
+        .collection('alerts')
+        .orderBy('timestamp', descending: true) // 🔹 Get the latest first
+        .limit(1) // 🔹 Only get the most recent alert
+        .snapshots()
+        .map((snapshot) {
+      if (snapshot.docs.isEmpty) return null; // 🔹 Handle empty case
+
+      final data =
+          snapshot.docs.first.data(); // 🔹 Get the first (most recent) doc
+
+      return DispensingLog(
+        day: data['day'] ?? 'Unknown',
+        time: data['time'] ?? 'Unknown',
+        patientName: data['patientName'] ?? 'Unknown',
+        medicineList: (data['medicines'] as List<dynamic>)
+            .map((m) =>
+                (m as Map<String, dynamic>)['medicineName']?.toString() ??
+                'Unknown')
+            .toList(),
+      );
+    });
   }
 }

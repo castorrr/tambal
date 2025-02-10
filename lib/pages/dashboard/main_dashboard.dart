@@ -5,7 +5,7 @@ import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
 import 'package:tambal/pages/dashboard/tabs/monitor_page.dart'; // Import Monitor Page
 import 'package:tambal/widgets/custom_app_bar.dart'; // Importing custom AppBar
 import 'package:tambal/widgets/custom_dashboard_alerts.dart';
-import 'package:tambal/widgets/custom_dashboard_medicine_card.dart';
+import 'package:tambal/widgets/custom_dashboard_analytics.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -111,7 +111,8 @@ class DashboardPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             // Now using the MedicineSlotSection
-            MedicineSlotSection(),
+            const SizedBox(height: 10),
+            CustomDashboardAnalytics(),
             const AlertListWidget(),
           ],
         ),
