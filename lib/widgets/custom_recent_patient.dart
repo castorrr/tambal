@@ -87,7 +87,7 @@ class RecentPatientCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Day: $day',
+                          'Date: $day',
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.grey,

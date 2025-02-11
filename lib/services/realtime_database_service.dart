@@ -3,13 +3,16 @@ import 'package:tambal/services/firestore_service.dart'; // Import FirestoreServ
 import 'package:firebase_database/firebase_database.dart';
 import 'package:logger/logger.dart';
 import 'package:tambal/models/schedule.dart';
-import 'package:tambal/models/dispensing_log.dart';
 import 'dart:async';
+import 'dart:collection';
 
 class RealtimeDatabaseService {
   final DatabaseReference _databaseRef = FirebaseDatabase.instance.ref();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final firestoreService = FirestoreService(); // ✅ Create instance
   final Logger _logger = Logger();
   StreamSubscription? _fingerprintListener;
+  StreamSubscription? _dispensingLogSubscription;
 
   // Method to set the dispense slot
   Future<void> setDispenseSlot(int slot) async {
@@ -163,162 +166,118 @@ class RealtimeDatabaseService {
     }
   }
 
-  //dispensing listener
-  Stream<List<DispensingLog>> streamDispensingLogs() {
-    DatabaseReference logRef = FirebaseDatabase.instance.ref('dispensingLogs');
+  void listenToDispensingLogs() {
+    final Queue<DatabaseEvent> eventQueue = Queue<DatabaseEvent>();
+    bool isProcessing = false;
 
-    return logRef.onValue.asyncMap((event) async {
-      final data = event.snapshot.value;
+    _dispensingLogSubscription = _databaseRef
+        .child('dispensingLogs')
+        .onChildAdded
+        .listen((DatabaseEvent event) async {
+      // Add the event to the queue
+      eventQueue.add(event);
 
-      if (data != null && data is Map) {
-        List<DispensingLog> dispensingLogs = [];
-        final firestoreService = FirestoreService();
-
-        for (var entry in data.entries) {
-          final logData = Map<String, dynamic>.from(entry.value);
-
-          final day = logData['day'] ?? 'Unknown';
-          final time = logData['time'] ?? 'Unknown';
-          final patientName = logData['patientId'] ?? 'Unknown';
-          final isDispensed = logData['isDispensed'] == 'true' ||
-              logData['isDispensed'] == true;
-
-          // Fetch the medicines array
-          final medicines = logData['medicines'];
-
-          // Convert medicines to a list of maps, handle unexpected formats
-          List<Map<String, dynamic>> medicineList = [];
-          if (medicines is List) {
-            try {
-              // Ensure all items in the list are valid maps
-              medicineList = medicines
-                  .whereType<Map>()
-                  .map((medicine) => Map<String, dynamic>.from(medicine))
-                  .toList();
-            } catch (e) {
-              _logger.e('Invalid medicine data format: $medicines');
-            }
-          } else {
-            _logger.e('Medicines field is not a List: $medicines');
+      // Process the queue if not already processing
+      if (!isProcessing) {
+        isProcessing = true;
+        try {
+          while (eventQueue.isNotEmpty) {
+            var currentEvent = eventQueue.removeFirst();
+            await _processDispensingLog(currentEvent);
           }
-
-          // Add the log data to the dispensingLogs list
-          dispensingLogs.add(
-            DispensingLog(
-              day: day,
-              time: time,
-              patientName: patientName,
-              medicineList: medicineList
-                  .map((medicine) => medicine['name']?.toString() ?? 'Unknown')
-                  .toList(),
-            ),
-          );
-
-          // If isDispensed is true, process the medicines asynchronously
-          if (isDispensed) {
-            Future(() async {
-              List<Map<String, dynamic>> medicineData = [];
-
-              // Fetch stock details for each medicine
-              for (var medicine in medicineList) {
-                final medicineName = medicine['name']?.toString() ?? 'Unknown';
-                final quantity = medicine['quantity'] ?? 0;
-
-                final medicineQuery = await FirebaseFirestore.instance
-                    .collection('medicine')
-                    .where('name', isEqualTo: medicineName)
-                    .get();
-
-                if (medicineQuery.docs.isNotEmpty) {
-                  final doc = medicineQuery.docs.first;
-                  final currentStock = doc['stock'] ?? 0;
-
-                  if (currentStock >= quantity) {
-                    medicineData.add({
-                      'name': medicineName,
-                      'quantity': quantity, // Decrement by this quantity
-                      'currentStock': currentStock,
-                      'docRef': doc.reference, // Store reference for updating
-                    });
-                  }
-                }
-              }
-
-              // Use FirestoreService to update stocks
-              await firestoreService.updateStocksByName(medicineData);
-
-              // Set isDispensed to false in the Realtime Database
-              await logRef.child(entry.key).update({'isDispensed': false});
-            });
-          }
+        } finally {
+          isProcessing = false;
         }
-        return dispensingLogs;
-      } else {
-        // Return an empty list if there's no data
-        return [];
       }
     });
   }
 
-  // Add this method to your RealtimeDatabaseService
-  Future<List<DispensingLog>> getDispensingLogsByPatient(
-      String patientName) async {
-    DatabaseReference logRef = _databaseRef.child('dispensingLogs');
+  Future<void> _processDispensingLog(DatabaseEvent event) async {
+    if (event.snapshot.value != null) {
+      _logger.i("📢 New dispensing log detected: ${event.snapshot.value}");
 
-    try {
-      final DataSnapshot snapshot = await logRef.get();
+      Map<dynamic, dynamic> logData =
+          Map<dynamic, dynamic>.from(event.snapshot.value as Map);
 
-      if (snapshot.exists && snapshot.value is Map) {
-        final data = snapshot.value as Map;
-        List<DispensingLog> dispensingLogs = [];
+      String logId = event.snapshot.key ?? "";
+      bool isDispensed = logData['isDispensed'] ?? false;
+      String day = logData['day'] ?? "Unknown";
+      String patientId = logData['patientId'] ?? "Unknown";
+      String time = logData['time'] ?? "Unknown";
+      List<dynamic> medicinesList = logData['medicines'] ?? [];
+      List<Map<String, dynamic>> updatedMedicines = [];
 
-        for (var entry in data.entries) {
-          final logData = Map<String, dynamic>.from(entry.value);
+      // Fetch medicine names for all logs
+      for (var med in medicinesList) {
+        int slot = med['slot'] ?? 0;
+        int quantity = med['quantity'] ?? 1;
+        String medicineName = await _getMedicineNameFromSlot(slot);
 
-          final logPatientName = logData['patientId'] ?? 'Unknown';
-
-          // Match only logs for the specified patient
-          if (logPatientName == patientName) {
-            final day = logData['day'] ?? 'Unknown';
-            final time = logData['time'] ?? 'Unknown';
-
-            // Fetch the medicines array
-            final medicines = logData['medicines'] ?? [];
-            List<String> medicineList = [];
-
-            if (medicines is List) {
-              try {
-                medicineList = medicines
-                    .whereType<Map>()
-                    .map(
-                        (medicine) => medicine['name']?.toString() ?? 'Unknown')
-                    .toList();
-              } catch (e) {
-                _logger.e('Invalid medicine data format: $medicines');
-              }
-            }
-
-            dispensingLogs.add(
-              DispensingLog(
-                day: day,
-                time: time,
-                patientName: logPatientName,
-                medicineList: medicineList,
-              ),
-            );
-          }
-        }
-
-        _logger.i(
-            'Fetched ${dispensingLogs.length} logs for patient: $patientName');
-        return dispensingLogs;
-      } else {
-        _logger.w('No logs found for patient: $patientName');
-        return [];
+        updatedMedicines.add({
+          "slot": slot,
+          "quantity": quantity,
+          "medicineName": medicineName,
+        });
       }
-    } catch (e) {
-      _logger.e('Failed to fetch dispensing logs for patient $patientName: $e');
-      return [];
+
+      // 🔹 Fetch patient name based on patientId
+      String patientName = await _getPatientNameFromId(patientId);
+
+      // Update stock only if dispensed
+      if (isDispensed) {
+        await firestoreService.updateStocksBySlot(updatedMedicines);
+      }
+
+      // Determine target collection and store in Firestore with timestamp
+      String collectionName = isDispensed ? "logging" : "alerts";
+      await _firestore.collection(collectionName).doc(logId).set({
+        "day": day,
+        "patientId": patientId, // Keep original ID for reference
+        "patientName": patientName, // Store resolved name
+        "time": time,
+        "medicines": updatedMedicines,
+        "timestamp": FieldValue.serverTimestamp(), // 🔹 Add Firestore timestamp
+      });
+
+      // Remove processed log from Realtime Database
+      await _databaseRef.child('dispensingLogs').child(logId).remove();
+      _logger.i(
+          "✅ Moved log to Firestore collection: $collectionName (ID: $logId)");
     }
+  }
+
+// 🔹 Fetch medicine name from Firestore based on slot
+  Future<String> _getMedicineNameFromSlot(int slot) async {
+    final querySnapshot = await _firestore
+        .collection('medicine')
+        .where('slot', isEqualTo: slot)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.get('name') ?? "Unknown";
+    }
+    return "Unknown"; // Default if medicine is not found
+  }
+
+// 🔹 Fetch patient name from Firestore based on patientId
+  Future<String> _getPatientNameFromId(String patientId) async {
+    try {
+      DocumentSnapshot docSnapshot =
+          await _firestore.collection('patients').doc(patientId).get();
+
+      if (docSnapshot.exists) {
+        return docSnapshot.get('name') ?? "Unknown Patient";
+      }
+      return "Unknown Patient"; // Default if patient is not found
+    } catch (e) {
+      _logger.i("❌ Error fetching patient name for ID $patientId: $e");
+      return "Unknown Patient"; // Return default in case of error
+    }
+  }
+
+  // 🔹 Stop listening when needed (e.g., logout or app closes)
+  void stopListening() {
+    _dispensingLogSubscription?.cancel();
+    _logger.i("🛑 Stopped listening to dispensingLogs");
   }
 }

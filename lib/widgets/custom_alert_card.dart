@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 
 class CustomAlertCard extends StatelessWidget {
   final String patientName;
-  final String patientGender;
-  final int patientAge;
   final String missedMedicine;
   final String dateMissed;
   final String timeMissed;
@@ -11,8 +9,6 @@ class CustomAlertCard extends StatelessWidget {
   const CustomAlertCard({
     super.key,
     required this.patientName,
-    required this.patientGender,
-    required this.patientAge,
     required this.missedMedicine,
     required this.dateMissed,
     required this.timeMissed,
@@ -21,6 +17,7 @@ class CustomAlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16.0),
       ),
@@ -55,10 +52,6 @@ class CustomAlertCard extends StatelessWidget {
                             ?.copyWith(color: const Color(0xFF3A86FF)),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'Gender: $patientGender   Age: $patientAge',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
                     ],
                   ),
                 ),

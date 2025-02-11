@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:tambal/services/firestore_service.dart';
 import 'package:tambal/widgets/custom_recent_patient.dart';
-import 'package:tambal/services/realtime_database_service.dart';
 import 'package:tambal/models/dispensing_log.dart';
 import 'package:excel/excel.dart';
 import 'package:pdf/pdf.dart';
@@ -19,12 +19,16 @@ class MonitorPage extends StatefulWidget {
 class _MonitorPageState extends State<MonitorPage> {
   final TextEditingController _searchController = TextEditingController();
   List<DispensingLog> _allLogs = [];
-  List<DispensingLog> _filteredLogs = [];
+  String _currentQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(_filterLogs);
+    _searchController.addListener(() {
+      setState(() {
+        _currentQuery = _searchController.text.toLowerCase();
+      });
+    });
   }
 
   @override
@@ -33,23 +37,17 @@ class _MonitorPageState extends State<MonitorPage> {
     super.dispose();
   }
 
-  void _filterLogs() {
-    final query = _searchController.text.toLowerCase();
-    if (query.isEmpty) {
-      setState(() {
-        _filteredLogs = _allLogs;
-      });
-    } else {
-      setState(() {
-        _filteredLogs = _allLogs.where((log) {
-          return log.patientName.toLowerCase().contains(query) ||
-              log.day.toLowerCase().contains(query) ||
-              log.time.toLowerCase().contains(query) ||
-              log.medicineList!.any((medicine) =>
-                  medicine.toString().toLowerCase().contains(query));
-        }).toList();
-      });
+  List<DispensingLog> _getFilteredLogs(List<DispensingLog> logs) {
+    if (_currentQuery.isEmpty) {
+      return logs;
     }
+    return logs.where((log) {
+      return log.patientName.toLowerCase().contains(_currentQuery) ||
+          log.day.toLowerCase().contains(_currentQuery) ||
+          log.time.toLowerCase().contains(_currentQuery) ||
+          log.medicineList.any((medicine) =>
+              medicine.toString().toLowerCase().contains(_currentQuery));
+    }).toList();
   }
 
   Future<bool> _requestStoragePermission() async {
@@ -100,7 +98,8 @@ class _MonitorPageState extends State<MonitorPage> {
     final hasPermission = await _requestStoragePermission();
     if (!hasPermission) return;
 
-    if (_filteredLogs.isEmpty && mounted) {
+    final filteredLogs = _getFilteredLogs(_allLogs);
+    if (filteredLogs.isEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data to export.')),
       );
@@ -122,12 +121,12 @@ class _MonitorPageState extends State<MonitorPage> {
       TextCellValue('Medicines'),
     ]);
 
-    for (var log in _filteredLogs) {
+    for (var log in filteredLogs) {
       sheet.appendRow([
         TextCellValue(log.patientName),
         TextCellValue(log.day),
         TextCellValue(log.time),
-        TextCellValue(log.medicineList?.join(', ') ?? ''),
+        TextCellValue(log.medicineList.join(', ')),
       ]);
     }
 
@@ -147,7 +146,8 @@ class _MonitorPageState extends State<MonitorPage> {
     final hasPermission = await _requestStoragePermission();
     if (!hasPermission) return;
 
-    if (_filteredLogs.isEmpty && mounted) {
+    final filteredLogs = _getFilteredLogs(_allLogs);
+    if (filteredLogs.isEmpty && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No data to export.')),
       );
@@ -212,12 +212,12 @@ class _MonitorPageState extends State<MonitorPage> {
                 fontSize: 12,
               ),
               headers: ['Patient Name', 'Day', 'Time', 'Medicines'],
-              data: _filteredLogs
+              data: filteredLogs
                   .map((log) => [
                         log.patientName,
                         log.day,
                         log.time,
-                        log.medicineList?.join(', ') ?? '',
+                        log.medicineList.join(', '),
                       ])
                   .toList(),
             ),
@@ -290,7 +290,8 @@ class _MonitorPageState extends State<MonitorPage> {
             const SizedBox(height: 16),
             Expanded(
               child: StreamBuilder<List<DispensingLog>>(
-                stream: RealtimeDatabaseService().streamDispensingLogs(),
+                stream: FirestoreService()
+                    .streamDispensingLogs(collectionName: "logging"),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
@@ -302,21 +303,19 @@ class _MonitorPageState extends State<MonitorPage> {
                     return const Center(
                         child: Text('No dispensing logs available.'));
                   }
+
                   _allLogs = snapshot.data!;
-                  _filteredLogs =
-                      _filteredLogs.isEmpty ? _allLogs : _filteredLogs;
+                  final filteredLogs = _getFilteredLogs(_allLogs);
+
                   return ListView.builder(
-                    itemCount: _filteredLogs.length,
+                    itemCount: filteredLogs.length,
                     itemBuilder: (context, index) {
-                      final log = _filteredLogs[index];
+                      final log = filteredLogs[index];
                       return RecentPatientCard(
                         patientName: log.patientName,
                         day: log.day,
                         time: log.time,
-                        medicineList: log.medicineList
-                                ?.map((item) => item.toString())
-                                .toList() ??
-                            [],
+                        medicineList: log.medicineList,
                       );
                     },
                   );

@@ -159,7 +159,7 @@ class PatientInformationModal extends StatelessWidget {
                     patientId: patientId,
                     patientName: patientName,
                   ),
-                  ActivityTab(patientName: patientName),
+                  ActivityTab(patientId: patientId),
                 ],
               ),
             ),
@@ -280,7 +280,7 @@ class ScheduleTab extends StatelessWidget {
       // Update stocks after successful dispensing
       if (allDispensedSuccessfully) {
         logger.i('Updating stocks...');
-        await firestoreService.updateStocksByName(medicines);
+        await firestoreService.updateStocksBySlot(medicines);
         logger.i('Stocks updated successfully after dispensing.');
       } else {
         logger.w('Dispensing failed. Stocks will not be updated.');
@@ -412,16 +412,17 @@ class ScheduleTab extends StatelessWidget {
 }
 
 class ActivityTab extends StatelessWidget {
-  final String patientName;
+  final String patientId;
 
-  const ActivityTab({super.key, required this.patientName});
+  const ActivityTab({super.key, required this.patientId});
 
   @override
   Widget build(BuildContext context) {
-    final realtimeDatabaseService = RealtimeDatabaseService();
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
 
     return FutureBuilder<List<DispensingLog>>(
-      future: realtimeDatabaseService.getDispensingLogsByPatient(patientName),
+      future: firestoreService.getDispensingLogsByPatient(patientId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -432,7 +433,9 @@ class ActivityTab extends StatelessWidget {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No activity logs found.'));
         }
+
         final logs = snapshot.data!;
+
         return ListView.builder(
           itemCount: logs.length,
           itemBuilder: (context, index) {
@@ -444,8 +447,7 @@ class ActivityTab extends StatelessWidget {
                 day: log.day,
                 time: log.time,
                 medicineList:
-                    log.medicineList?.map((item) => item.toString()).toList() ??
-                        [],
+                    log.medicineList.map((item) => item.toString()).toList(),
               ),
             );
           },
