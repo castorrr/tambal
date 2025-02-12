@@ -19,12 +19,12 @@ class _AlertListWidgetState extends State<AlertListWidget> {
       children: [
         // Title Section
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Latest Alert',
+                'Alert',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                       color: const Color(0xFF3A86FF),
                       fontWeight: FontWeight.w600,
@@ -41,7 +41,7 @@ class _AlertListWidgetState extends State<AlertListWidget> {
 
         // Fetch Most Recent Patient Alert from Firestore
         SizedBox(
-          height: 240, // Adjust height to fit content
+          height: 260, // Adjust height to fit content
           child: StreamBuilder<DispensingLog?>(
             stream: FirestoreService()
                 .getMostRecentPatientAlert(), // 🔹 Fetch latest patient alert

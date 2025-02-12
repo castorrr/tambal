@@ -14,128 +14,192 @@ class RecentPatientCard extends StatelessWidget {
     required this.medicineList,
   });
 
-  // Helper function to extract initials from the patient's name
-  String getInitials(String name) {
-    List<String> nameParts = name.split(' ');
-    String initials = '';
-    for (var part in nameParts) {
-      if (part.isNotEmpty) {
-        initials += part[0]; // Take the first letter of each name part
-      }
-    }
-    return initials.toUpperCase(); // Return the initials in uppercase
-  }
-
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20), // Rounded corners for the card
+        borderRadius: BorderRadius.circular(20),
       ),
-      elevation: 4, // Shadow for the card
-      margin: const EdgeInsets.symmetric(
-          horizontal: 16, vertical: 8), // Margin around the card
-      color: Colors.white, // Background color matching the design
-      child: Padding(
-        padding: const EdgeInsets.all(16), // Padding inside the card
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Adjusted Circle Avatar with Initials
-            Padding(
-              padding: const EdgeInsets.only(top: 10.0), // Move avatar down
-              child: CircleAvatar(
-                radius: 40, // Size of the avatar
-                backgroundColor:
-                    const Color(0xFF3A86FF), // Background color for the avatar
-                child: Text(
-                  getInitials(
-                      patientName), // Show initials from the patient's name
-                  style: const TextStyle(
-                    fontSize: 24, // Larger font size for initials
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white, // Initials text color
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16), // Space between the avatar and text
-
-            // Expanded Column for Patient Info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 220),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white,
+              Colors.green.shade100.withOpacity(0.1),
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  // Patient Name
-                  Text(
-                    patientName,
-                    style: const TextStyle(
-                      fontSize: 24, // Increased font size for name
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF3A86FF), // Same blue as the title
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade100.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis, // Handle long names
-                  ),
-                  const SizedBox(height: 8), // Space between name and day/time
-
-                  // Day and Time
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today,
-                          size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Date: $day',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis, // Handle overflow
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time,
-                          size: 16, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Time: $time',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis, // Handle overflow
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                      height: 8), // Space between day/time and medicine
-
-                  // Medicines in single line
-                  Text(
-                    'Medicine: ${medicineList.join(', ')}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black87,
+                    child: const Icon(
+                      Icons.person_outline,
+                      size: 24,
+                      color: Colors.green,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis, // Handle overflow
+                  ),
+                  const SizedBox(width: 12),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          patientName,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF2B50AA),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.green,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Medication Dispensed',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.green.shade100,
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.green.shade100.withOpacity(0.5),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    _buildInfoRow(
+                      icon: Icons.medication,
+                      iconColor: Colors.blue.shade400,
+                      label: 'Medicine',
+                      value: medicineList.join(', '),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildInfoRow(
+                            icon: Icons.calendar_today_outlined,
+                            iconColor: Colors.orange.shade700,
+                            label: 'Date Taken',
+                            value: day,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildInfoRow(
+                            icon: Icons.access_time,
+                            iconColor: Colors.green.shade700,
+                            label: 'Time Taken',
+                            value: time,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(
+            icon,
+            size: 20,
+            color: iconColor,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

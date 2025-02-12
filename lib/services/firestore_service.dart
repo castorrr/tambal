@@ -14,25 +14,27 @@ class FirestoreService {
   // ----------------- Medicine Methods -----------------
 
   // Method to add a new medicine to Firestore
-  Future<void> addMedicine({
+  Future<String> addMedicine({
     required String name,
     required String purpose,
-    required String description,
     required int stock,
     required int slot,
-    required String userId,
+    required String userId, // ✅ Make sure userId is required
   }) async {
     try {
-      await _firestore.collection('medicine').add({
+      DocumentReference docRef = await _firestore.collection('medicine').add({
         'name': name,
         'purpose': purpose,
-        'description': description,
         'stock': stock,
         'slot': slot,
-        'userId': userId,
+        'userId': userId, // ✅ Ensure it's stored
         'timestamp': FieldValue.serverTimestamp(),
       });
-      _logger.i('Medicine added successfully to Firestore.');
+
+      String newId = docRef.id;
+      _logger.i('Medicine added successfully with ID: $newId');
+
+      return newId; // Return document ID
     } catch (e) {
       _logger.e('Failed to add medicine: $e');
       rethrow;
@@ -44,7 +46,6 @@ class FirestoreService {
     required String id,
     required String name,
     required String purpose,
-    required String description,
     required int stock,
     required int slot,
     required String userId,
@@ -53,15 +54,15 @@ class FirestoreService {
       await _firestore.collection('medicine').doc(id).update({
         'name': name,
         'purpose': purpose,
-        'description': description,
         'stock': stock,
         'slot': slot,
         'userId': userId,
-        'timestamp': FieldValue.serverTimestamp(),
+        // ❌ Removed 'timestamp' or 'lastUpdated' field
       });
-      _logger.i('Medicine with ID $id updated successfully in Firestore.');
+
+      _logger.i('Medicine $id successfully updated in Firestore.');
     } catch (e) {
-      _logger.e('Failed to update medicine with ID $id: $e');
+      _logger.e('Failed to update medicine $id in Firestore: $e');
       rethrow;
     }
   }
@@ -75,7 +76,6 @@ class FirestoreService {
             id: doc.id,
             name: doc['name'] ?? 'Unknown',
             purpose: doc['purpose'] ?? 'Unknown',
-            description: doc['description'] ?? 'No description available',
             stock: doc['stock'] ?? 0,
             slot: doc['slot'] ?? 0,
           );
@@ -569,6 +569,7 @@ class FirestoreService {
                 .map((medicine) =>
                     medicine['medicineName']?.toString() ?? 'Unknown')
                 .toList(),
+            source: '',
           ),
         );
       }
@@ -580,62 +581,67 @@ class FirestoreService {
   Future<List<DispensingLog>> getDispensingLogsByPatient(
       String patientId) async {
     try {
-      List<DispensingLog> dispensingLogs = [];
+      List<Map<String, dynamic>> rawLogs = [];
 
       // Fetch from `logging` collection
       QuerySnapshot loggingSnapshot = await _firestore
           .collection('logging')
-          .where('patientId',
-              isEqualTo: patientId) // 🔹 Ensure patientId filter
-          .orderBy('timestamp', descending: true) // 🔹 Sort by latest first
+          .where('patientId', isEqualTo: patientId)
+          .orderBy('timestamp',
+              descending: true) // 🔹 Firestore sorts within `logging`
           .get();
 
       // Fetch from `alerts` collection
       QuerySnapshot alertsSnapshot = await _firestore
           .collection('alerts')
-          .where('patientId',
-              isEqualTo: patientId) // 🔹 Ensure patientId filter
-          .orderBy('timestamp', descending: true)
+          .where('patientId', isEqualTo: patientId)
+          .orderBy('timestamp',
+              descending: true) // 🔹 Firestore sorts within `alerts`
           .get();
 
-      // Combine results
-      List<QueryDocumentSnapshot> allDocs = [
-        ...loggingSnapshot.docs,
-        ...alertsSnapshot.docs
-      ];
-
-      if (allDocs.isEmpty) {
-        return []; // Return empty list if no data
-      }
-
-      // Parse documents into DispensingLog objects
-      for (var doc in allDocs) {
+      // Store `logging` logs with extracted timestamp
+      for (var doc in loggingSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-
-        final day = data['day'] ?? 'Unknown';
-        final time = data['time'] ?? 'Unknown';
-
-        // Extract medicines list safely
-        final medicines = data['medicines'] ?? [];
-        List<String> medicineList = medicines is List
-            ? medicines
-                .whereType<Map<String, dynamic>>()
-                .map((medicine) =>
-                    medicine['medicineName']?.toString() ?? 'Unknown')
-                .toList()
-            : [];
-
-        // Add to list
-        dispensingLogs.add(DispensingLog(
-          day: day,
-          time: time,
-          patientName: data['patientName'] ?? 'Unknown',
-          medicineList: medicineList,
-        ));
+        rawLogs.add({
+          ...data,
+          'source': 'logging',
+          'timestamp': (data['timestamp'] as Timestamp).toDate()
+        });
       }
+
+      // Store `alerts` logs with extracted timestamp
+      for (var doc in alertsSnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        rawLogs.add({
+          ...data,
+          'source': 'alerts',
+          'timestamp': (data['timestamp'] as Timestamp).toDate()
+        });
+      }
+
+      // 🔹 Sort by `timestamp` before mapping to `DispensingLog`
+      rawLogs.sort((a, b) =>
+          (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime));
+
+      // Convert raw logs to `DispensingLog` instances (without timestamp field)
+      List<DispensingLog> dispensingLogs = rawLogs
+          .map((data) => DispensingLog(
+                day: data['day'] ?? 'Unknown',
+                time: data['time'] ?? 'Unknown',
+                patientName: data['patientName'] ?? 'Unknown',
+                medicineList: (data['medicines'] as List<dynamic>?)
+                        ?.whereType<Map<String, dynamic>>()
+                        .map((medicine) =>
+                            medicine['medicineName']?.toString() ?? 'Unknown')
+                        .toList() ??
+                    [],
+                source: data['source'],
+              ))
+          .toList();
 
       return dispensingLogs;
     } catch (e) {
+      _logger.i("Error fetching logs: $e");
       return [];
     }
   }
@@ -653,15 +659,15 @@ class FirestoreService {
           snapshot.docs.first.data(); // 🔹 Get the first (most recent) doc
 
       return DispensingLog(
-        day: data['day'] ?? 'Unknown',
-        time: data['time'] ?? 'Unknown',
-        patientName: data['patientName'] ?? 'Unknown',
-        medicineList: (data['medicines'] as List<dynamic>)
-            .map((m) =>
-                (m as Map<String, dynamic>)['medicineName']?.toString() ??
-                'Unknown')
-            .toList(),
-      );
+          day: data['day'] ?? 'Unknown',
+          time: data['time'] ?? 'Unknown',
+          patientName: data['patientName'] ?? 'Unknown',
+          medicineList: (data['medicines'] as List<dynamic>)
+              .map((m) =>
+                  (m as Map<String, dynamic>)['medicineName']?.toString() ??
+                  'Unknown')
+              .toList(),
+          source: 'alerts');
     });
   }
 }

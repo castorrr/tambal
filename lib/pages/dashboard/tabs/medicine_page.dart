@@ -109,7 +109,14 @@ class MedicinePageState extends State<MedicinePage> {
       try {
         final firestoreService =
             Provider.of<FirestoreService>(context, listen: false);
+        final realtimeDatabaseService =
+            Provider.of<RealtimeDatabaseService>(context, listen: false);
+
+        // ✅ Delete from Firestore first
         await firestoreService.deleteMedicine(medicine.id);
+
+        // ✅ Then delete from RTDB
+        await realtimeDatabaseService.deleteMedicine(medicine.id);
 
         if (mounted) {
           logger.i('Medicine ${medicine.name} deleted successfully.');
@@ -176,7 +183,12 @@ class MedicinePageState extends State<MedicinePage> {
               .toList();
 
           return ListView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              top: 16.0,
+              bottom: 70.0, // 🔹 Extra padding to prevent FAB overlap
+            ),
             children: medicines.map((medicine) {
               return CustomMedicineCard(
                 medicine: medicine,
