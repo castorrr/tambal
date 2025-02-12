@@ -48,14 +48,6 @@ class CustomMedicineCard extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8.0),
-
-                // Description
-                Text(
-                  'Description: ${medicine.description}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 8.0),
-
                 // Stock Information
                 Text(
                   'Stock: ${medicine.stock}',

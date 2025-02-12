@@ -4,7 +4,6 @@ class Medicine {
   final String id; // Unique ID for the medicine
   final String name;
   final String purpose;
-  final String description;
   final int stock;
   final int slot; // Quantity of the medicine
 
@@ -12,7 +11,6 @@ class Medicine {
     required this.id,
     required this.name,
     required this.purpose,
-    required this.description,
     required this.stock,
     required this.slot,
   });
@@ -23,7 +21,6 @@ class Medicine {
       id: documentId,
       name: data['name'] ?? '',
       purpose: data['purpose'] ?? '',
-      description: data['description'] ?? '',
       stock: data['stock'] ?? 0,
       slot: data['slot'] ?? 0, // Default to 0 if stock is not provided
     );
@@ -34,7 +31,6 @@ class Medicine {
     return {
       'name': name,
       'purpose': purpose,
-      'description': description,
       'stock': stock,
       'slot': slot,
     };

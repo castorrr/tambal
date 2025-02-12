@@ -254,7 +254,7 @@ class _MonitorPageState extends State<MonitorPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 const Text(
                   'Recently Dispensed',
@@ -264,6 +264,7 @@ class _MonitorPageState extends State<MonitorPage> {
                     color: Color(0xFF3A86FF),
                   ),
                 ),
+                const SizedBox(width: 80),
                 IconButton(
                   onPressed: _showDownloadOptions,
                   icon: const Icon(Icons.save_alt),

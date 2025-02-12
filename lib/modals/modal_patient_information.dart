@@ -8,6 +8,7 @@ import 'package:tambal/services/firestore_service.dart';
 import 'package:tambal/services/realtime_database_service.dart';
 import 'package:tambal/widgets/custom_schedule_card.dart';
 import 'package:tambal/widgets/custom_recent_patient.dart';
+import 'package:tambal/widgets/custom_alert_card.dart';
 
 class PatientInformationModal extends StatelessWidget {
   final String patientName;
@@ -440,15 +441,22 @@ class ActivityTab extends StatelessWidget {
           itemCount: logs.length,
           itemBuilder: (context, index) {
             final log = logs[index];
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-              child: RecentPatientCard(
-                patientName: log.patientName,
-                day: log.day,
-                time: log.time,
-                medicineList:
-                    log.medicineList.map((item) => item.toString()).toList(),
-              ),
+              child: log.source == "logging"
+                  ? RecentPatientCard(
+                      patientName: log.patientName,
+                      day: log.day,
+                      time: log.time,
+                      medicineList: log.medicineList,
+                    )
+                  : CustomAlertCard(
+                      patientName: log.patientName,
+                      missedMedicine: log.medicineList.join(','),
+                      dateMissed: log.day,
+                      timeMissed: log.time,
+                    ),
             );
           },
         );

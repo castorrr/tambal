@@ -32,7 +32,6 @@ void main() async {
   // Initialize Firebase with error handling
   try {
     await Firebase.initializeApp();
-    RealtimeDatabaseService().listenToDispensingLogs();
   } catch (e) {
     logger.e('Firebase initialization error: $e');
   }
@@ -49,8 +48,62 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  MyAppState createState() => MyAppState();
+}
+
+class MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  final RealtimeDatabaseService _realtimeDatabaseService =
+      RealtimeDatabaseService();
+  bool _isListening = false; // ✅ Prevents multiple listener instances
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _startListeners(); // ✅ Start only once when app launches
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopListeners(); // ✅ Stop when app is completely closed
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _stopListeners(); // ✅ Stop listeners when app is backgrounded
+    } else if (state == AppLifecycleState.resumed) {
+      _startListeners(); // ✅ Restart listeners when app resumes
+    }
+  }
+
+  /// ✅ Helper function to start listeners safely
+  void _startListeners() {
+    if (!_isListening) {
+      _realtimeDatabaseService.listenToStockChanges();
+      _realtimeDatabaseService.listenToDispensingLogs();
+      _isListening = true; // ✅ Ensures only one active listener
+      logger.i("Firebase listeners started.");
+    }
+  }
+
+  /// ✅ Helper function to stop listeners safely
+  void _stopListeners() {
+    if (_isListening) {
+      _realtimeDatabaseService.stopStockListener();
+      _realtimeDatabaseService.stopListening();
+      _isListening =
+          false; // ✅ Ensures listeners do not restart unintentionally
+      logger.i("Firebase listeners stopped.");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

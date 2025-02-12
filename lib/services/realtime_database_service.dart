@@ -13,6 +13,7 @@ class RealtimeDatabaseService {
   final Logger _logger = Logger();
   StreamSubscription? _fingerprintListener;
   StreamSubscription? _dispensingLogSubscription;
+  StreamSubscription<DatabaseEvent>? _stockListener;
 
   // Method to set the dispense slot
   Future<void> setDispenseSlot(int slot) async {
@@ -224,9 +225,9 @@ class RealtimeDatabaseService {
       String patientName = await _getPatientNameFromId(patientId);
 
       // Update stock only if dispensed
-      if (isDispensed) {
-        await firestoreService.updateStocksBySlot(updatedMedicines);
-      }
+      //if (isDispensed) {
+      //await firestoreService.updateStocksBySlot(updatedMedicines);
+      //}
 
       // Determine target collection and store in Firestore with timestamp
       String collectionName = isDispensed ? "logging" : "alerts";
@@ -270,7 +271,7 @@ class RealtimeDatabaseService {
       }
       return "Unknown Patient"; // Default if patient is not found
     } catch (e) {
-      _logger.i("❌ Error fetching patient name for ID $patientId: $e");
+      _logger.i("Error fetching patient name for ID $patientId: $e");
       return "Unknown Patient"; // Return default in case of error
     }
   }
@@ -278,6 +279,98 @@ class RealtimeDatabaseService {
   // 🔹 Stop listening when needed (e.g., logout or app closes)
   void stopListening() {
     _dispensingLogSubscription?.cancel();
-    _logger.i("🛑 Stopped listening to dispensingLogs");
+    _logger.i("Stopped listening to dispensingLogs");
+  }
+
+  Future<void> syncMedicineFromFirestore(String medicineId) async {
+    try {
+      _logger.i(
+          'Fetching medicine $medicineId from Firestore to sync with RTDB...');
+
+      // Fetch the medicine document from Firestore
+      DocumentSnapshot docSnapshot =
+          await _firestore.collection('medicine').doc(medicineId).get();
+
+      if (docSnapshot.exists) {
+        Map<String, dynamic> medicineData =
+            docSnapshot.data() as Map<String, dynamic>;
+
+        // ✅ Remove 'timestamp' & 'lastUpdated' if they exist
+        medicineData.remove('timestamp');
+        medicineData.remove('lastUpdated');
+
+        // ✅ Store medicine data in RTDB under "medicines/{medicineId}"
+        await _databaseRef.child('medicines/$medicineId').set(medicineData);
+
+        _logger
+            .i('Medicine $medicineId successfully synced to Realtime Database');
+      } else {
+        _logger.w(
+            'Medicine $medicineId does not exist in Firestore. Skipping RTDB sync.');
+      }
+    } catch (e) {
+      _logger.e(
+          'Failed to sync medicine $medicineId from Firestore to Realtime Database: $e');
+    }
+  }
+
+  Future<void> deleteMedicine(String medicineId) async {
+    try {
+      // Delete from Firestore first
+      await _firestore.collection('medicine').doc(medicineId).delete();
+
+      // Then delete from RTDB
+      await _databaseRef.child('medicines').child(medicineId).remove();
+
+      _logger.i(
+          'Medicine $medicineId deleted from Firestore and Realtime Database');
+    } catch (e) {
+      _logger
+          .e('Failed to delete medicine $medicineId from Firestore/RTDB: $e');
+    }
+  }
+
+  void listenToStockChanges() {
+    _logger.i("Listening to stock changes in Realtime Database...");
+
+    // Listen to all medicines' stock updates inside "medicines" node
+    _stockListener =
+        _databaseRef.child('medicines').onChildChanged.listen((event) async {
+      if (event.snapshot.exists) {
+        String medicineId = event.snapshot.key ?? "";
+        Map<dynamic, dynamic> updatedData =
+            event.snapshot.value as Map<dynamic, dynamic>;
+
+        // ✅ Check if "stock" exists in the update
+        if (updatedData.containsKey("stock")) {
+          int updatedStock = updatedData["stock"];
+          _logger.i(
+              "Stock updated in RTDB for $medicineId: New Stock = $updatedStock");
+
+          // ✅ Sync stock update to Firestore
+          await _syncStockToFirestore(medicineId, updatedStock);
+        }
+      }
+    });
+  }
+
+  /// ✅ Sync Stock Changes from RTDB to Firestore
+  Future<void> _syncStockToFirestore(String medicineId, int newStock) async {
+    try {
+      await _firestore.collection("medicine").doc(medicineId).update({
+        "stock": newStock,
+        "lastUpdated": FieldValue.serverTimestamp(), // Optional timestamp
+      });
+
+      _logger.i("Stock for $medicineId successfully updated in Firestore.");
+    } catch (e) {
+      _logger.e("Failed to update stock for $medicineId in Firestore: $e");
+    }
+  }
+
+  /// ✅ Stop Listening When Not Needed
+  void stopStockListener() {
+    _stockListener?.cancel();
+    _logger.i("Stopped listening to stock changes.");
   }
 }

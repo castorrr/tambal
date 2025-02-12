@@ -128,7 +128,7 @@ class CustomDashboardAnalytics extends StatelessWidget {
                     child: Text(
                       value,
                       style: TextStyle(
-                        fontSize: isLargeText ? 40 : 25, // Adjust size
+                        fontSize: isLargeText ? 36 : 24, // Adjust size
                         fontWeight: FontWeight.w800,
                         color: color,
                       ),
