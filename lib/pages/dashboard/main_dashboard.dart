@@ -16,14 +16,18 @@ class MainDashboard extends StatefulWidget {
 
 class MainDashboardState extends State<MainDashboard> {
   int currentIndex = 0;
+  final List<Widget> _pages = [];
 
-  // List of pages for the bottom navigation bar
-  final List<Widget> _pages = [
-    const DashboardPage(),
-    const MedicinePage(),
-    const PatientsPage(),
-    const MonitorPage(), // Monitor Page added here
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _pages.addAll([
+      DashboardPage(onTabChange: onTabTapped), // Pass tab change function
+      const MedicinePage(),
+      const PatientsPage(),
+      const MonitorPage(),
+    ]);
+  }
 
   // Method to handle tab selection
   void onTabTapped(int index) {
@@ -100,7 +104,9 @@ class MainDashboardState extends State<MainDashboard> {
 
 // Define the DashboardPage class outside the MainDashboardState class
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+  final Function(int) onTabChange; // Accepts a function to switch tabs
+
+  const DashboardPage({super.key, required this.onTabChange});
 
   @override
   Widget build(BuildContext context) {
@@ -110,9 +116,8 @@ class DashboardPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // Now using the MedicineSlotSection
             const SizedBox(height: 10),
-            CustomDashboardAnalytics(),
+            CustomDashboardAnalytics(onTabChange: onTabChange), // Pass function
             const AlertListWidget(),
           ],
         ),

@@ -24,9 +24,9 @@ class ModalAddMedicineState extends State<ModalAddMedicine> {
   final Logger logger = Logger();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController purposeController = TextEditingController();
+  final TextEditingController stockController = TextEditingController();
   final formKey = GlobalKey<FormState>();
   String? selectedSlot;
-  int stock = 0;
   bool isLoading = false; // Track if saving is in progress
 
   @override
@@ -35,7 +35,7 @@ class ModalAddMedicineState extends State<ModalAddMedicine> {
     if (widget.medicine != null) {
       nameController.text = widget.medicine!.name;
       purposeController.text = widget.medicine!.purpose;
-      stock = widget.medicine!.stock;
+      stockController.text = widget.medicine!.stock.toString();
       selectedSlot = widget.medicine!.slot.toString();
     } else if (widget.availableSlots.isNotEmpty) {
       selectedSlot = widget.availableSlots.first.toString();
@@ -66,10 +66,11 @@ class ModalAddMedicineState extends State<ModalAddMedicine> {
               ),
               const SizedBox(height: 10),
               TextFormField(
-                initialValue: stock.toString(),
-                decoration:
-                    const InputDecoration(labelText: 'Stock (Initially 0)'),
-                readOnly: true,
+                controller: stockController, // ✅ Now user-editable
+                decoration: const InputDecoration(labelText: 'Stock'),
+                keyboardType: TextInputType.number, // ✅ Restricts to numbers
+                validator: (value) =>
+                    FormValidators.requiredField(value, 'Stock'),
               ),
               const SizedBox(height: 10),
               widget.medicine == null
@@ -153,6 +154,7 @@ class ModalAddMedicineState extends State<ModalAddMedicine> {
 
       String name = nameController.text;
       String purpose = purposeController.text;
+      int stock = int.tryParse(stockController.text) ?? 0;
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final String userId = authProvider.user?.uid ?? '';
       bool success = false;
@@ -166,7 +168,7 @@ class ModalAddMedicineState extends State<ModalAddMedicine> {
             id: widget.medicine!.id,
             name: name,
             purpose: purpose,
-            stock: widget.medicine!.stock,
+            stock: stock,
             slot: widget.medicine!.slot,
             userId: userId,
           );
@@ -177,7 +179,7 @@ class ModalAddMedicineState extends State<ModalAddMedicine> {
           medicineId = await widget._firestoreService.addMedicine(
             name: name,
             purpose: purpose,
-            stock: 0, // Stock is always 0 initially
+            stock: stock, // Stock is always 0 initially
             slot: int.parse(selectedSlot!),
             userId: userId,
           );

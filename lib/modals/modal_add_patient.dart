@@ -434,11 +434,25 @@ class AddPatientModalState extends State<AddPatientModal> {
         setState(() {
           isFingerprintLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to extract fingerprint. Please try again.'),
-          ),
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: const Text(
+                  'Failed to extract fingerprint. Please try again.'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
         );
+
         await realtimeDatabaseService.resetFingerprintCommand();
       }
     });

@@ -44,7 +44,6 @@ class _CustomNetworkStatusNotifierState
       _isConnected = result != ConnectivityResult.none;
 
       if (wasDisconnected && _isConnected) {
-        // Step 1: Show "Reconnecting..." first
         _isReconnecting = true;
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) {
@@ -53,7 +52,6 @@ class _CustomNetworkStatusNotifierState
               _showConnectedMessage = true;
             });
 
-            // Step 2: Show "Connected" message briefly
             Future.delayed(const Duration(seconds: 2), () {
               if (mounted) {
                 setState(() {
@@ -76,82 +74,62 @@ class _CustomNetworkStatusNotifierState
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.ltr, // ✅ Set default text direction
+      textDirection: TextDirection.ltr,
       child: Stack(
         children: [
           widget.child,
-
-          // ✅ Show "No Connection" when offline
-          if (!_isConnected && !_isReconnecting)
+          if (!_isConnected || _isReconnecting || _showConnectedMessage)
             Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
+              top:
+                  32, // Adjust this value to control how high the message appears
+              left: MediaQuery.of(context).size.width * 0.25,
+              right: MediaQuery.of(context).size.width * 0.25,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                color: Colors.red,
-                child: const Center(
-                  child: Text(
-                    "No Connection",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _isReconnecting
+                      ? Colors.orange
+                      : _isConnected
+                          ? Colors.green
+                          : Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                      offset: Offset(0, 4),
                     ),
-                  ),
+                  ],
                 ),
-              ),
-            ),
-
-          // ✅ Show "Reconnecting..." when internet is coming back
-          if (_isReconnecting)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                color: Colors.orange,
-                child: const Row(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    if (_isReconnecting)
+                      const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      ),
+                    if (_isReconnecting) const SizedBox(width: 8),
                     Text(
-                      "Reconnecting...",
-                      style: TextStyle(
+                      _isReconnecting
+                          ? "Reconnecting..."
+                          : _isConnected
+                              ? "Connected"
+                              : "No Connection",
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
                   ],
-                ),
-              ),
-            ),
-
-          // ✅ Show "Connected" briefly before hiding it
-          if (_showConnectedMessage)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                color: Colors.green,
-                child: const Center(
-                  child: Text(
-                    "Connected",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
                 ),
               ),
             ),
