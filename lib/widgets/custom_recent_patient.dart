@@ -31,7 +31,7 @@ class RecentPatientCard extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: [
               Colors.white,
-              Colors.green.shade100.withOpacity(0.1),
+              Colors.green.shade50.withOpacity(0.1),
             ],
           ),
         ),

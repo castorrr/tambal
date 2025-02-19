@@ -26,7 +26,7 @@ class _AlertListWidgetState extends State<AlertListWidget> {
               Text(
                 'Alert',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      color: const Color(0xFF3A86FF),
+                      color: Colors.blueAccent,
                       fontWeight: FontWeight.w600,
                     ),
               ),

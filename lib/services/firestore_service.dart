@@ -472,11 +472,14 @@ class FirestoreService {
   Stream<String> getLowestStockMedicine() {
     return _firestore
         .collection('medicine')
+        .where('stock',
+            isLessThanOrEqualTo:
+                5) // Only include medicines with 5 or fewer stocks
         .orderBy('stock') // Sort by lowest stock first
-        .limit(1) // Only fetch one document
+        .limit(1) // Fetch only one document
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) return "No Medicines";
+      if (snapshot.docs.isEmpty) return "--";
       return snapshot.docs.first.get('name') ?? "Unknown"; // Fetch only 'name'
     });
   }

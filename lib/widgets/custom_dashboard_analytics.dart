@@ -3,13 +3,14 @@ import '../services/firestore_service.dart';
 
 class CustomDashboardAnalytics extends StatelessWidget {
   final FirestoreService firestoreService = FirestoreService();
+  final Function(int) onTabChange; // Callback function for tab switching
 
-  CustomDashboardAnalytics({super.key});
+  CustomDashboardAnalytics({super.key, required this.onTabChange});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           Row(
@@ -17,31 +18,34 @@ class CustomDashboardAnalytics extends StatelessWidget {
               _buildStreamStatCard(
                 title: "Patients",
                 stream: firestoreService.getTotalPatients(),
-                icon: Icons.person,
-                color: Colors.blue.shade700,
-                isLargeText: true, // Large centered text & label
+                icon: Icons.group_rounded,
+                color: Colors.blue,
+                isLargeText: true,
+                onTap: () => onTabChange(2), // Switch to Patients Page
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _buildStreamStatCard(
-                title: "Medicine",
+                title: "Medicine Types",
                 stream: firestoreService.getMedicineTypes(),
-                icon: Icons.medical_services,
-                color: Colors.green.shade700,
-                isLargeText: true, // Large centered text & label
+                icon: Icons.medication_liquid_rounded,
+                color: Colors.green,
+                isLargeText: true,
+                onTap: () => onTabChange(1), // Switch to Medicine Page
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           Row(
             children: [
               _buildStreamStatCard(
-                title: "Low Stock Medicine",
+                title: "Low on Stock",
                 stream: firestoreService.getLowestStockMedicine(),
-                icon: Icons.warning_amber_rounded,
-                color: Colors.red.shade700,
-                isLargeText: false, // Smaller centered text & label
+                icon: Icons.inventory_rounded,
+                color: Colors.orange,
+                isLargeText: true,
+                onTap: () => onTabChange(1), // Switch to Medicine Page
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               _buildUpcomingScheduleCard(),
             ],
           ),
@@ -55,22 +59,28 @@ class CustomDashboardAnalytics extends StatelessWidget {
     required Stream<T> stream,
     required IconData icon,
     required Color color,
-    bool isLargeText = false, // Flag to determine text size
+    bool isLargeText = false,
+    required VoidCallback onTap, // OnTap function to switch tabs
   }) {
     return Expanded(
-      child: StreamBuilder<T>(
-        stream: stream,
-        builder: (context, snapshot) {
-          String value = snapshot.hasData ? snapshot.data.toString() : "--";
-          return _buildStatCard(title, value, icon, color, isLargeText);
-        },
+      child: GestureDetector(
+        onTap: onTap, // Call onTap function to change tab
+        child: StreamBuilder<T>(
+          stream: stream,
+          builder: (context, snapshot) {
+            String value = snapshot.hasData ? snapshot.data.toString() : "--";
+            return _buildStatCard(title, value, icon, color, isLargeText);
+          },
+        ),
       ),
     );
   }
 
   Widget _buildUpcomingScheduleCard() {
     return Expanded(
-      child: StreamBuilder<Map<String, String>?>(
+      child: GestureDetector(
+        onTap: () => onTabChange(2), // Switch to Patients Page
+        child: StreamBuilder<Map<String, String>?>(
           stream: firestoreService.getUpcomingSchedule(),
           builder: (context, snapshot) {
             String patientName = "--";
@@ -82,92 +92,91 @@ class CustomDashboardAnalytics extends StatelessWidget {
               scheduleTime = schedule['time'] ?? "--";
             }
 
-            // ✅ If there's a valid schedule, add "@" before the time. Otherwise, leave it empty.
-            String displayTime = scheduleTime != "--" ? "@$scheduleTime" : "--";
-
+            String displayTime = scheduleTime != "--" ? scheduleTime : "";
             return _buildStatCard(
               "Upcoming Schedule",
-              "$patientName\n$displayTime", // ✅ Dynamically formatted schedule time
-              Icons.schedule,
-              Colors.orange.shade700,
-              false, // Smaller centered text & label
+              "$patientName${displayTime.isNotEmpty ? '\n$displayTime' : ''}",
+              Icons.calendar_today_rounded,
+              Colors.purple,
+              false,
             );
-          }),
+          },
+        ),
+      ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color,
-      bool isLargeText) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+    bool isLargeText,
+  ) {
     return Container(
-      height: 160, // Keep all boxes uniform in size
+      height: 150,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
+            blurRadius: 20,
             spreadRadius: 2,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Stack(
-        clipBehavior:
-            Clip.none, // Allows the icon to be positioned outside the box
-        children: [
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                // Value - Large & centered for top 2 cards, smaller for bottom 2
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: color, size: 26),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Center(
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: isLargeText ? 36 : 24, // Adjust size
-                        fontWeight: FontWeight.w800,
-                        color: color,
-                      ),
-                      textAlign: TextAlign.center,
+                  child: Text(
+                    title.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade900,
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ),
-                // Label - Centered for all cards
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize:
-                        isLargeText ? 18 : 14, // Smaller font for bottom cards
-                    fontWeight: FontWeight.w800,
-                    color: Colors.black87.withOpacity(0.8),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
               ],
             ),
-          ),
-          // Icon in the top-right corner
-          Positioned(
-            top: -14, // Moves the icon slightly above the card
-            right: -8, // Moves the icon slightly outside the right edge
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: color, // Match the color of the card
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(icon,
-                    size: 30, color: Colors.white), // White icon for visibility
+            const Spacer(),
+            Center(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: isLargeText ? 30 : 23,
+                  fontWeight: FontWeight.bold,
+                  color: color.withOpacity(1.0),
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-          ),
-        ],
+            const Spacer(),
+          ],
+        ),
       ),
     );
   }
