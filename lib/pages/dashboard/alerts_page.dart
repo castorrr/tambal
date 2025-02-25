@@ -40,9 +40,8 @@ class AlertsPage extends StatelessWidget {
 
               return CustomAlertCard(
                 patientName: alert.patientName,
-                missedMedicine:
-                    alert.medicineList.join(', '), // Convert list to string
-                dateMissed: alert.day, // Assuming "day" is the missed date
+                missedMedicine: alert.scheduleType, // Convert list to string
+                dateMissed: alert.date, // Assuming "day" is the missed date
                 timeMissed: alert.time,
               );
             },

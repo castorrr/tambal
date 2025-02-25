@@ -11,7 +11,6 @@ import 'pages/dashboard/main_dashboard.dart';
 import 'pages/dashboard/alerts_page.dart';
 import 'pages/dashboard/wifi_page.dart';
 import 'pages/welcome_page.dart';
-import 'pages/dashboard/tabs/medicine_page.dart';
 import 'pages/dashboard/tabs/patients_page.dart';
 import 'pages/dashboard/profile_page.dart';
 
@@ -87,7 +86,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// ✅ Helper function to start listeners safely
   void _startListeners() {
     if (!_isListening) {
-      _realtimeDatabaseService.listenToStockChanges();
       _realtimeDatabaseService.listenToDispensingLogs();
       _isListening = true; // ✅ Ensures only one active listener
       logger.i("Firebase listeners started.");
@@ -97,7 +95,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
   /// ✅ Helper function to stop listeners safely
   void _stopListeners() {
     if (_isListening) {
-      _realtimeDatabaseService.stopStockListener();
       _realtimeDatabaseService.stopListening();
       _isListening =
           false; // ✅ Ensures listeners do not restart unintentionally
@@ -155,7 +152,6 @@ class MyAppState extends State<MyApp> with WidgetsBindingObserver {
               '/signup': (context) => const SignupPage(),
               '/forgot-password': (context) => const ForgotPasswordPage(),
               '/main-dashboard': (context) => const MainDashboard(),
-              '/medicine-page': (context) => const MedicinePage(),
               '/patients-page': (context) => const PatientsPage(),
               '/profile-page': (context) => const ProfilePage(),
               '/alerts-page': (context) => const AlertsPage(),

@@ -95,45 +95,11 @@ class NotificationService {
       ];
 
       for (final time in notificationTimes) {
-        if (schedule.days.contains("Everyday")) {
-          await _createNotification(schedule, time, timeZone, repeats: true);
-        } else {
-          for (final day in schedule.days) {
-            final dayIndex = _dayOfWeekMap[day];
-            if (dayIndex == null) {
-              logger.w("Invalid day in schedule: $day");
-              continue;
-            }
-            await _scheduleWeeklyNotification(
-                schedule, time, dayIndex, timeZone);
-          }
-        }
+        await _createNotification(schedule, time, timeZone, repeats: true);
       }
     } catch (e, stackTrace) {
       logger.e("Error scheduling notification: $e\n$stackTrace");
     }
-  }
-
-  /// Schedule weekly notifications
-  Future<void> _scheduleWeeklyNotification(Schedule schedule, DateTime baseTime,
-      int targetDay, String timeZone) async {
-    final now = DateTime.now();
-    int daysDifference = (targetDay - now.weekday + 7) % 7;
-
-    // Skip past notifications
-    if (daysDifference == 0 && baseTime.isBefore(now)) {
-      daysDifference = 7;
-    }
-
-    final scheduledTime = DateTime(
-      now.year,
-      now.month,
-      now.day + daysDifference,
-      baseTime.hour,
-      baseTime.minute,
-    );
-
-    await _createNotification(schedule, scheduledTime, timeZone, repeats: true);
   }
 
   /// Create a notification
@@ -146,9 +112,8 @@ class NotificationService {
         return;
       }
 
-      final medicineList = schedule.medicines
-          .map((medicine) => medicine['name'] ?? 'Unknown')
-          .join(', ');
+      // ✅ Use schedule.medicine directly (it's already formatted as a string)
+      final String medicineList = schedule.medicine;
 
       final notificationId =
           _generateNotificationId(schedule.id, scheduledTime);
@@ -237,14 +202,4 @@ class NotificationService {
   int _generateNotificationId(String id, DateTime time) {
     return id.hashCode ^ time.hashCode;
   }
-
-  final Map<String, int> _dayOfWeekMap = {
-    'Sunday': 7,
-    'Monday': 1,
-    'Tuesday': 2,
-    'Wednesday': 3,
-    'Thursday': 4,
-    'Friday': 5,
-    'Saturday': 6,
-  };
 }

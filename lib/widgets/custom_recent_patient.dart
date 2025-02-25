@@ -4,7 +4,7 @@ class RecentPatientCard extends StatelessWidget {
   final String patientName;
   final String day;
   final String time;
-  final List<String> medicineList;
+  final String medicineList;
 
   const RecentPatientCard({
     super.key,
@@ -117,8 +117,8 @@ class RecentPatientCard extends StatelessWidget {
                     _buildInfoRow(
                       icon: Icons.medication,
                       iconColor: Colors.blue.shade400,
-                      label: 'Medicine',
-                      value: medicineList.join(', '),
+                      label: 'Medicine Schedule',
+                      value: medicineList,
                     ),
                     const SizedBox(height: 12),
                     Row(

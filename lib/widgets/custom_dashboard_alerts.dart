@@ -19,17 +19,16 @@ class _AlertListWidgetState extends State<AlertListWidget> {
       children: [
         // Title Section
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 8.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Alert',
-                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      color: Colors.blueAccent,
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
+              Text('Alert',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  )),
               const Icon(
                 Icons.add_alert_rounded,
                 color: Colors.grey,
@@ -62,10 +61,10 @@ class _AlertListWidgetState extends State<AlertListWidget> {
                 padding: const EdgeInsets.only(bottom: 20.0),
                 child: CustomAlertCard(
                   key: ValueKey(
-                      alert.day + alert.time), // 🔹 Unique key for each alert
+                      alert.date + alert.time), // 🔹 Unique key for each alert
                   patientName: alert.patientName,
-                  missedMedicine: alert.medicineList.join(', '),
-                  dateMissed: alert.day,
+                  missedMedicine: alert.scheduleType,
+                  dateMissed: alert.date,
                   timeMissed: alert.time,
                 ),
               );

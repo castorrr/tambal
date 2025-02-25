@@ -21,29 +21,7 @@ class CustomDashboardAnalytics extends StatelessWidget {
                 icon: Icons.group_rounded,
                 color: Colors.blue,
                 isLargeText: true,
-                onTap: () => onTabChange(2), // Switch to Patients Page
-              ),
-              const SizedBox(width: 16),
-              _buildStreamStatCard(
-                title: "Medicine Types",
-                stream: firestoreService.getMedicineTypes(),
-                icon: Icons.medication_liquid_rounded,
-                color: Colors.green,
-                isLargeText: true,
-                onTap: () => onTabChange(1), // Switch to Medicine Page
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _buildStreamStatCard(
-                title: "Low on Stock",
-                stream: firestoreService.getLowestStockMedicine(),
-                icon: Icons.inventory_rounded,
-                color: Colors.orange,
-                isLargeText: true,
-                onTap: () => onTabChange(1), // Switch to Medicine Page
+                onTap: () => onTabChange(1), // Switch to Patients Page
               ),
               const SizedBox(width: 16),
               _buildUpcomingScheduleCard(),
@@ -79,7 +57,7 @@ class CustomDashboardAnalytics extends StatelessWidget {
   Widget _buildUpcomingScheduleCard() {
     return Expanded(
       child: GestureDetector(
-        onTap: () => onTabChange(2), // Switch to Patients Page
+        onTap: () => onTabChange(1),
         child: StreamBuilder<Map<String, String>?>(
           stream: firestoreService.getUpcomingSchedule(),
           builder: (context, snapshot) {

@@ -1,11 +1,11 @@
 // File: main_dashboard.dart
 import 'package:flutter/material.dart';
-import 'package:tambal/pages/dashboard/tabs/medicine_page.dart';
 import 'package:tambal/pages/dashboard/tabs/patients_page.dart';
 import 'package:tambal/pages/dashboard/tabs/monitor_page.dart'; // Import Monitor Page
 import 'package:tambal/widgets/custom_app_bar.dart'; // Importing custom AppBar
 import 'package:tambal/widgets/custom_dashboard_alerts.dart';
 import 'package:tambal/widgets/custom_dashboard_analytics.dart';
+import 'package:tambal/widgets/custom_dashboard_patient.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -23,7 +23,6 @@ class MainDashboardState extends State<MainDashboard> {
     super.initState();
     _pages.addAll([
       DashboardPage(onTabChange: onTabTapped), // Pass tab change function
-      const MedicinePage(),
       const PatientsPage(),
       const MonitorPage(),
     ]);
@@ -72,7 +71,8 @@ class MainDashboardState extends State<MainDashboard> {
       bottomNavigationBar: BottomNavigationBar(
         onTap: onTabTapped,
         currentIndex: currentIndex,
-        backgroundColor: Colors.blue,
+        backgroundColor: Theme.of(context)
+            .scaffoldBackgroundColor, // ✅ Fixed background color
         // Set a background color to make the bar visible
         selectedItemColor: Colors.blue,
         // Color for the selected icon
@@ -83,10 +83,6 @@ class MainDashboardState extends State<MainDashboard> {
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.medication_rounded),
-            label: 'Medicine',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.people),
@@ -117,7 +113,8 @@ class DashboardPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             const SizedBox(height: 10),
-            CustomDashboardAnalytics(onTabChange: onTabChange), // Pass function
+            CustomDashboardAnalytics(onTabChange: onTabChange),
+            CustomDashboardPatient(onTabChange: onTabChange),
             const AlertListWidget(),
           ],
         ),

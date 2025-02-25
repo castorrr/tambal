@@ -5,6 +5,8 @@ class CustomPatientListCard extends StatefulWidget {
   final String name;
   final String gender;
   final int age;
+  final int slot;
+  final String readyForDispense; // 🔹 New field
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onTap;
@@ -14,6 +16,8 @@ class CustomPatientListCard extends StatefulWidget {
     required this.name,
     required this.gender,
     required this.age,
+    required this.slot,
+    required this.readyForDispense, // 🔹 Accepts data for next dispense
     required this.onEdit,
     required this.onDelete,
     required this.onTap,
@@ -35,49 +39,40 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
 
   // Function to convert gender to abbreviation
   String getGenderAbbreviation(String gender) {
-    return gender.toLowerCase() == 'male'
-        ? 'M'
-        : gender.toLowerCase() == 'female'
-            ? 'F'
-            : gender;
+    return gender.toLowerCase() == 'male' ? 'M' : 'F';
   }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 10.0),
       child: Slidable(
         key: ValueKey(widget.name),
         endActionPane: ActionPane(
           motion: const StretchMotion(),
           children: [
-            // 🟦 Edit Button
             SlidableAction(
               onPressed: (context) => widget.onEdit(),
-              backgroundColor: Colors.blue,
+              backgroundColor: Colors.blue.shade600,
               foregroundColor: Colors.white,
               icon: Icons.edit,
-              label: 'Edit', // Adds space between icon and text
-              padding: EdgeInsets.zero, // Removes extra padding
-              autoClose: true, // Closes the slide after clicking
+              label: 'Edit',
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(16),
                 bottomLeft: Radius.circular(16),
               ),
             ),
-            // 🔴 Delete Button (Fixed width to show full "Delete" text)
             SlidableAction(
               onPressed: (context) => widget.onDelete(),
-              backgroundColor: Colors.red,
+              backgroundColor: Colors.red.shade600,
               foregroundColor: Colors.white,
               icon: Icons.delete,
               label: 'Delete',
-              padding: EdgeInsets.zero, // ✅ Removes extra padding
               borderRadius: const BorderRadius.only(
                 topRight: Radius.circular(16),
                 bottomRight: Radius.circular(16),
               ),
-            )
+            ),
           ],
         ),
         child: GestureDetector(
@@ -89,94 +84,114 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
           onTapCancel: () => setState(() => isTapped = false),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 100),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
             decoration: BoxDecoration(
               color: isTapped ? Colors.blue.shade50 : Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withOpacity(0.2),
                   spreadRadius: 1,
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Circular Avatar
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 68,
-                        height: 67,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 8,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Circular Avatar and Slot Number
+                Column(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 75,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.blue.shade50,
+                        border:
+                            Border.all(color: Colors.blue.shade200, width: 2),
                       ),
-                      Positioned(
-                        top: -3,
-                        left: 0,
-                        right: 0,
+                      child: Transform.translate(
+                        offset:
+                            const Offset(0, -2), // Adjust Y-axis positioning
                         child: ClipOval(
                           child: Image.asset(
                             getGenderImage(widget.gender),
-                            width: 70,
-                            height: 75,
-                            fit: BoxFit.cover,
+                            width: 80, // Increase for better fit
+                            height: 80,
+                            fit: BoxFit
+                                .cover, // Ensures full coverage inside the circle
                           ),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade600,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'No. ${widget.slot}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+
+                // Patient Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 14),
+                      Text(
+                        widget.name,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.medication,
+                            color: Colors.green,
+                            size: 18,
+                          ),
+                          Text(
+                            'Ready for Dispense: ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                          Text(
+                            widget.readyForDispense,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(width: 16),
-                  // Patient Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Text(
-                              'Gender: ${getGenderAbbreviation(widget.gender)}',
-                              style: const TextStyle(
-                                  fontSize: 14, color: Colors.black54),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Age: ${widget.age}',
-                              style: const TextStyle(
-                                  fontSize: 14, color: Colors.black54),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
