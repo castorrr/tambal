@@ -574,4 +574,33 @@ class FirestoreService {
     const scheduleMap = {1: "Breakfast", 2: "Lunch", 3: "Dinner"};
     return scheduleMap[type] ?? "Unknown";
   }
+
+  // Fetch the latest schedule for a given patient
+  Future<Schedule?> getLatestScheduleForPatient(String patientId) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('schedules')
+        .where('patientId', isEqualTo: patientId)
+        .orderBy('time', descending: true) // ✅ Get the latest schedule first
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      return Schedule.fromMap(snapshot.docs.first.data());
+    } else {
+      return null;
+    }
+  }
+
+// Add a dispensing log to Firestore
+  Future<void> addDispensingLog(DispensingLog log) async {
+    await FirebaseFirestore.instance.collection('logging').add({
+      'date': log.date,
+      'time': log.time,
+      'patientId': log.patientId,
+      'patientName': log.patientName,
+      'scheduleType': _mapScheduleType(
+          int.tryParse(log.scheduleType) ?? 0), // ✅ Convert here
+      'medicine': log.medicine,
+    });
+  }
 }

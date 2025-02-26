@@ -40,10 +40,22 @@ class PatientInformationModal extends StatelessWidget {
   Future<void> _dispenseMedicines(BuildContext context, int patientSlot) async {
     final realtimeDatabaseService =
         Provider.of<RealtimeDatabaseService>(context, listen: false);
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
     final Logger logger = Logger();
 
+    // ✅ Capture time before async calls to avoid using BuildContext later
+    final DateTime now = DateTime.now();
+    final String formattedDate = "${now.month}/${now.day}/${now.year}";
+
+    // ✅ Use MaterialLocalizations to format time without needing BuildContext later
+    final String formattedTime = MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(now));
+
     // Show the loading dialog
-    _showLoadingDialog(context, "Dispensing Medicines...");
+    if (context.mounted) {
+      _showLoadingDialog(context, "Dispensing Medicines...");
+    }
 
     try {
       bool isDispensed = false;
@@ -73,6 +85,7 @@ class PatientInformationModal extends StatelessWidget {
         logger.e(
             'Failed to dispense medicines from patient slot $patientSlot within the timeout period.');
         await realtimeDatabaseService.setDispenseSlot(0); // Reset dispense slot
+
         if (context.mounted) {
           Navigator.of(context).pop(); // Dismiss the loading dialog
           _showResultDialog(context, false,
@@ -81,15 +94,34 @@ class PatientInformationModal extends StatelessWidget {
         return;
       }
 
+      // ✅ Successfully Dispensed → Log to Firestore
+      final schedule =
+          await firestoreService.getLatestScheduleForPatient(patientId);
+
+      if (schedule != null) {
+        DispensingLog logEntry = DispensingLog(
+          date: formattedDate,
+          time: formattedTime, // ✅ Using pre-stored formattedTime
+          patientId: patientId,
+          patientName: patientName,
+          scheduleType: schedule.scheduleType.toString(),
+          medicine: schedule.medicine,
+          source: "",
+        );
+
+        await firestoreService.addDispensingLog(logEntry);
+        logger.i("Dispensing log saved successfully.");
+      } else {
+        logger.e("No schedule found for patient.");
+      }
+
       if (context.mounted) {
         Navigator.of(context).pop(); // Dismiss the loading dialog
         _showResultDialog(context, true, 'Medicines dispensed successfully!');
       }
-
-      logger.i(
-          'Medicines dispensed successfully from patient slot $patientSlot.');
     } catch (e) {
       logger.e('An error occurred during dispensing: $e');
+
       if (context.mounted) {
         Navigator.of(context).pop(); // Dismiss the loading dialog
         _showResultDialog(
