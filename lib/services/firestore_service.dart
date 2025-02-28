@@ -236,49 +236,45 @@ class FirestoreService {
   Stream<Map<String, String>?> getUpcomingSchedule() {
     return _firestore
         .collection('schedules')
-        .orderBy('time') // ✅ Order schedules by time (ascending)
+        .orderBy('time') // Order schedules by time (ascending)
         .snapshots()
         .map((snapshot) {
       if (snapshot.docs.isEmpty) {
-        return null;
+        return null; // No schedules available
       }
 
       DateTime now = DateTime.now();
       int currentTimeInt = _convertTimeToInt(DateFormat('h:mm a').format(now));
 
-      // ✅ Reset if it's a new day (past 12:00 AM)
-      if (currentTimeInt < _convertTimeToInt("12:00 AM")) {
-        return null; // Reset for the next day
-      }
-
-      Map<String, String>? mostRecentSchedule;
-      int? lastScheduleTime; // Track the last schedule time
+      Map<String, String>? upcomingSchedule;
+      int? lastScheduleTime; // Track the last schedule time of the day
 
       for (var doc in snapshot.docs) {
         var data = doc.data();
         String scheduleTimeStr = data['time'] ?? "--";
         int scheduleTimeInt = _convertTimeToInt(scheduleTimeStr);
 
-        // ✅ Track the last schedule time of the day
-        lastScheduleTime = scheduleTimeInt;
+        // Track the last schedule time of the day
+        if (lastScheduleTime == null || scheduleTimeInt > lastScheduleTime) {
+          lastScheduleTime = scheduleTimeInt;
+        }
 
-        if (scheduleTimeInt <= currentTimeInt) {
-          mostRecentSchedule = {
+        // If the schedule is upcoming (after the current time), set it as the upcoming schedule
+        if (scheduleTimeInt > currentTimeInt) {
+          upcomingSchedule = {
             'patientName': data['patientName'] ?? "Unknown",
             'time': scheduleTimeStr,
           };
-        } else {
-          // ✅ If we hit a future schedule, stop looking
-          break;
+          break; // Stop after finding the first upcoming schedule
         }
       }
 
-      // ✅ If the time is past the last schedule of the day, return null
+      // If the current time is past the last schedule of the day, return null
       if (lastScheduleTime != null && currentTimeInt > lastScheduleTime) {
         return null;
       }
 
-      return mostRecentSchedule;
+      return upcomingSchedule;
     });
   }
 

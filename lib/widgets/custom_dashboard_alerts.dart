@@ -19,7 +19,7 @@ class _AlertListWidgetState extends State<AlertListWidget> {
       children: [
         // Title Section
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 22.0, vertical: 2.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
