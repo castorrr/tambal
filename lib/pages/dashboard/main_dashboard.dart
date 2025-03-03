@@ -157,7 +157,7 @@ class DashboardPageState extends State<DashboardPage> {
       if (hour == times[3]) return '$meal has ended';
     }
 
-    return ''; // Hide message outside meal times
+    return '-----'; // Hide message outside meal times
   }
 
   @override
@@ -202,13 +202,16 @@ class DashboardPageState extends State<DashboardPage> {
             ),
             // Meal Time Prompt inside a Card
             if (mealTime.isNotEmpty)
+              // Meal Time Prompt inside a Card
               Card(
                 elevation: 2, // Light shadow for a slight depth effect
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12), // Soft rounded edges
                   side: BorderSide(
-                      color: Colors.green.withOpacity(0.8),
+                      color: mealTime == '-----'
+                          ? Colors.grey.withOpacity(0.5)
+                          : Colors.green.withOpacity(0.8),
                       width: 1), // Subtle border
                 ),
                 child: Padding(
@@ -220,23 +223,27 @@ class DashboardPageState extends State<DashboardPage> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.greenAccent
-                              .withOpacity(0.2), // Soft background for icon
+                          color: mealTime == '-----'
+                              ? Colors.grey.withOpacity(0.2)
+                              : Colors.greenAccent.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.restaurant,
-                          color: Colors.green,
+                          color:
+                              mealTime == '-----' ? Colors.grey : Colors.green,
                           size: 24,
                         ),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        '$mealTime!',
-                        style: const TextStyle(
+                        mealTime, // Displays meal time or "-----"
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Colors.black87,
+                          color: mealTime == '-----'
+                              ? Colors.grey
+                              : Colors.black87,
                         ),
                       ),
                     ],

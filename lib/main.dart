@@ -38,7 +38,6 @@ void main() async {
   try {
     // Initialize notifications
     notificationService.initialize();
-    notificationService.startListeningForScheduleUpdates();
   } catch (e, stackTrace) {
     logger.e('Error initializing Awesome Notifications: $e',
         error: e, stackTrace: stackTrace);
