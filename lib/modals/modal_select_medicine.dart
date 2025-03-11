@@ -76,7 +76,7 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
                                   const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             subtitle:
-                                Text('Quantity: ${medicine['quantity']}×'),
+                                Text('Quantity: ${medicine['quantity']}x'),
                             trailing: IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () {
@@ -121,7 +121,7 @@ class ModalSelectMedicineState extends State<ModalSelectMedicine> {
                       // ✅ Convert medicines list to a single formatted string
                       String formattedMedicines = tempSelectedMedicines
                           .map((m) =>
-                              "${m['name']} ${m['dosage'] ?? 'N/A'} ${m['quantity']}×")
+                              "${m['name']} ${m['dosage'] ?? 'N/A'} ${m['quantity']}x")
                           .join(", "); // Comma-separated
 
                       widget.onMedicinesSelected(

@@ -10,62 +10,6 @@ class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
 
-  // ----------------- Medicine Methods -----------------
-
-  // Method to add a new medicine to Firestore
-  Future<String> addMedicine({
-    required String name,
-    required String purpose,
-    required int stock,
-    required int slot,
-    required String userId, // ✅ Make sure userId is required
-  }) async {
-    try {
-      DocumentReference docRef = await _firestore.collection('medicine').add({
-        'name': name,
-        'purpose': purpose,
-        'stock': stock,
-        'slot': slot,
-        'userId': userId, // ✅ Ensure it's stored
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-
-      String newId = docRef.id;
-      _logger.i('Medicine added successfully with ID: $newId');
-
-      return newId; // Return document ID
-    } catch (e) {
-      _logger.e('Failed to add medicine: $e');
-      rethrow;
-    }
-  }
-
-  // Method to update an existing medicine in Firestore
-  Future<void> updateMedicine({
-    required String id,
-    required String name,
-    required String purpose,
-    required int stock,
-    required int slot,
-    required String userId,
-  }) async {
-    try {
-      await _firestore.collection('medicine').doc(id).update({
-        'name': name,
-        'purpose': purpose,
-        'stock': stock,
-        'slot': slot,
-        'userId': userId,
-        // ❌ Removed 'timestamp' or 'lastUpdated' field
-      });
-
-      _logger.i('Medicine $id successfully updated in Firestore.');
-    } catch (e) {
-      _logger.e('Failed to update medicine $id in Firestore: $e');
-      rethrow;
-    }
-  }
-
   // ----------------- Patient Methods -----------------
 
   // Method to generate a unique ID for a given collection
@@ -148,7 +92,10 @@ class FirestoreService {
   // Method to add a new schedule to Firestore
   Future<void> addSchedule(Schedule schedule) async {
     try {
-      await _firestore.collection('schedules').add(schedule.toMap());
+      await _firestore
+          .collection('schedules')
+          .doc(schedule.id)
+          .set(schedule.toMap());
       _logger.i(
           'Schedule for ${schedule.patientName} added successfully to Firestore.');
     } catch (e) {
@@ -209,16 +156,19 @@ class FirestoreService {
     return doc.exists;
   }
 
-  Future<void> updateSchedule(Schedule schedule) async {
-    try {
-      await _firestore
-          .collection('schedules')
-          .doc(schedule.id)
-          .update(schedule.toMap());
-    } catch (e) {
-      _logger.e('Failed to update schedule: $e');
-      rethrow;
+  Future<void> updateSchedule(String scheduleId, Schedule schedule) async {
+    final docRef = _firestore.collection('schedules').doc(scheduleId);
+    final docSnapshot = await docRef.get();
+
+    if (!docSnapshot.exists) {
+      _logger.e(
+          '⛔ Schedule not found in Firestore: $scheduleId. Skipping update.');
+      return;
     }
+
+    _logger.i(
+        '✅ Updating Firestore schedule: $scheduleId with ${schedule.toMap()}');
+    await docRef.update(schedule.toMap());
   }
 
   Future<DocumentSnapshot<Map<String, dynamic>>> getScheduleById(
@@ -519,22 +469,63 @@ class FirestoreService {
       // 🔹 Get latest dispensed schedule type
       String latestDispensed = logs.first["scheduleType"];
 
-      // 🔹 Determine the next schedule type
-      return _getNextScheduleType(latestDispensed);
+      // 🔹 Determine the next valid schedule type
+      return await _getNextValidScheduleType(patientId, latestDispensed);
     } catch (e) {
       return "Error";
     }
   }
 
-  /// 🔹 Determine the next schedule based on the last dispensed one
-  String _getNextScheduleType(String latest) {
+  /// 🔹 Fetch all available schedule types for the patient and find the next valid one
+  Future<String> _getNextValidScheduleType(
+      String patientId, String latest) async {
     const order = ["Breakfast", "Lunch", "Dinner"];
 
-    int index = order.indexOf(latest);
-    if (index == -1 || index == order.length - 1) {
-      return "Breakfast"; // Default back to Breakfast if last was Dinner
+    try {
+      var snapshot = await _firestore
+          .collection('schedules')
+          .where('patientId', isEqualTo: patientId)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return "No Schedule"; // No schedules exist
+      }
+
+      // 🔹 Extract existing schedule types
+      List<String> availableSchedules = snapshot.docs
+          .map((doc) =>
+              _mapScheduleType(doc.data()['scheduleType'] as int? ?? 999))
+          .toList();
+
+      if (availableSchedules.isEmpty) {
+        return "No Schedule";
+      }
+
+      // 🔹 Ensure schedules are in the correct order
+      availableSchedules
+          .sort((a, b) => order.indexOf(a).compareTo(order.indexOf(b)));
+
+      // 🔹 Find the next available schedule type in order
+      int index = order.indexOf(latest);
+
+      if (index == -1 || availableSchedules.length == 1) {
+        // 🔹 If the last dispensed type is not in order OR only one schedule exists
+        return availableSchedules.first;
+      }
+
+      // 🔹 Loop through to find the next available schedule
+      for (int i = 1; i < order.length; i++) {
+        int nextIndex = (index + i) % order.length;
+        if (availableSchedules.contains(order[nextIndex])) {
+          return order[nextIndex];
+        }
+      }
+
+      // 🔹 If no valid next schedule is found, default to the first available one
+      return availableSchedules.first;
+    } catch (e) {
+      return "Error";
     }
-    return order[index + 1]; // Return the next schedule in sequence
   }
 
   /// 🔹 Fetch the earliest schedule type if no logs exist
@@ -572,17 +563,50 @@ class FirestoreService {
   }
 
   // Fetch the latest schedule for a given patient
-  Future<Schedule?> getLatestScheduleForPatient(String patientId) async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('schedules')
-        .where('patientId', isEqualTo: patientId)
-        .orderBy('time', descending: true) // ✅ Get the latest schedule first
-        .limit(1)
-        .get();
+  Future<Map<String, dynamic>?> getLatestDispenseWithMedicine(
+      String patientId) async {
+    try {
+      // Step 1: Get the latest schedule type using getLatestDispense
+      String latestScheduleType = await getLatestDispense(patientId);
+      _logger.i(latestScheduleType);
+      _logger.i(patientId);
 
-    if (snapshot.docs.isNotEmpty) {
-      return Schedule.fromMap(snapshot.docs.first.data());
-    } else {
+      if (latestScheduleType == "Error") {
+        return null; // Return null if no valid schedule is found
+      }
+
+      int scheduleTypeNumber;
+      switch (latestScheduleType) {
+        case "Breakfast":
+          scheduleTypeNumber = 1;
+        case "Lunch":
+          scheduleTypeNumber = 2;
+        case "Dinner":
+          scheduleTypeNumber = 3;
+        default:
+          return null; // Return 0 if it's an unknown type
+      }
+
+      // Step 2: Query the schedules collection using the retrieved schedule type
+      var snapshot = await _firestore
+          .collection('schedules')
+          .where('patientId', isEqualTo: patientId)
+          .where('scheduleType',
+              isEqualTo: scheduleTypeNumber) // ✅ Use the exact value returned
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        return null; // No matching schedule found
+      }
+
+      // Step 3: Extract medicine data from the first matching document
+      var scheduleData = snapshot.docs.first.data();
+      return {
+        "scheduleType":
+            latestScheduleType, // ✅ Ensure conversion using your mapping method
+        "medicine": scheduleData['medicine'] ?? [],
+      };
+    } catch (e) {
       return null;
     }
   }
@@ -594,9 +618,27 @@ class FirestoreService {
       'time': log.time,
       'patientId': log.patientId,
       'patientName': log.patientName,
-      'scheduleType': _mapScheduleType(
-          int.tryParse(log.scheduleType) ?? 0), // ✅ Convert here
+      'scheduleType': log.scheduleType, // ✅ Convert here
       'medicine': log.medicine,
     });
+  }
+
+  /// Deletes all documents inside the specified Firestore collections
+  Future<void> resetFirestoreCollections() async {
+    try {
+      // List of collections to delete
+      List<String> collections = ['alerts', 'logging', 'patients', 'schedules'];
+
+      for (String collection in collections) {
+        QuerySnapshot snapshot = await _firestore.collection(collection).get();
+        for (DocumentSnapshot doc in snapshot.docs) {
+          await doc.reference.delete();
+        }
+      }
+
+      _logger.i("Firestore collections cleared.");
+    } catch (e) {
+      _logger.e("Error resetting Firestore collections: $e");
+    }
   }
 }

@@ -291,4 +291,13 @@ class RealtimeDatabaseService {
       _logger.i("Hotdog");
     }
   }
+
+  Future<void> resetRealtimeDatabaseSchedules() async {
+    try {
+      await _databaseRef.child('schedules').remove();
+      _logger.i("Realtime Database schedules node cleared.");
+    } catch (e) {
+      _logger.e("Error resetting Realtime Database schedules: $e");
+    }
+  }
 }

@@ -53,7 +53,7 @@ class NotificationService {
       final List<Map<String, dynamic>> notifications = [
         {
           "time": DateTime(
-              now.year, now.month, now.day, 8, 0), // Breakfast - 8:00 AM
+              now.year, now.month, now.day, 7, 30), // Breakfast - 8:00 AM
           "title": "Breakfast Medication Reminder",
           "body": "Time to eat breakfast and take your medicine!"
         },

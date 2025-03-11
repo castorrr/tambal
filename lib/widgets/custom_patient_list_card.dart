@@ -37,11 +37,6 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
         : 'assets/images/Female.png';
   }
 
-  // Function to convert gender to abbreviation
-  String getGenderAbbreviation(String gender) {
-    return gender.toLowerCase() == 'male' ? 'M' : 'F';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -110,7 +105,7 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
                         shape: BoxShape.circle,
                         color: Colors.blue.shade50,
                         border:
-                            Border.all(color: Colors.blue.shade200, width: 2),
+                            Border.all(color: Colors.blue.shade400, width: 2),
                       ),
                       child: Transform.translate(
                         offset:
@@ -145,45 +140,62 @@ class _CustomPatientListCardState extends State<CustomPatientListCard> {
                     ),
                   ],
                 ),
-                const SizedBox(width: 16),
+
+                Container(
+                  width: 1.5,
+                  height: 80,
+                  color: Colors.grey.shade300,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
+                ),
 
                 // Patient Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                       Text(
                         widget.name,
                         style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
-                        ),
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade900,
+                            height: 1),
                         overflow: TextOverflow.ellipsis,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            left: 3), // Adjust left padding as needed
+                        child: Text(
+                          'Patient',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade400,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       Row(
                         children: [
                           const Icon(
                             Icons.medication,
-                            color: Colors.green,
-                            size: 18,
+                            color: Colors.blueAccent,
+                            size: 14,
                           ),
                           Text(
                             'Ready for Dispense: ',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade800,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.grey.shade600,
                             ),
                           ),
                           Text(
                             widget.readyForDispense,
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.green.shade600,
                             ),
                           ),
                         ],

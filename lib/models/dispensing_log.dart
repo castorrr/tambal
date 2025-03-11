@@ -25,8 +25,9 @@ class DispensingLog {
       time: data['time'] ?? 'Unknown',
       patientId: data['patientId'] ?? 'Unknown',
       patientName: data['patientName'] ?? 'Unknown',
-      scheduleType:
-          data['scheduleType'].toString(), // Ensure it's stored as String
+      scheduleType: data['scheduleType'] != null
+          ? data['scheduleType'].toString()
+          : "Unknown",
       medicine: data['medicine'] ?? 'Unknown',
       source: source, // 🔹 Assign source dynamically
     );

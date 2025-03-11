@@ -94,11 +94,7 @@ class CustomDashboardAnalytics extends StatelessWidget {
     return Container(
       height: 150,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: color.withOpacity(0.2),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -119,7 +115,7 @@ class CustomDashboardAnalytics extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: color.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: color, size: 26),
@@ -143,9 +139,9 @@ class CustomDashboardAnalytics extends StatelessWidget {
               child: Text(
                 value,
                 style: TextStyle(
-                  fontSize: isLargeText ? 30 : 23,
-                  fontWeight: FontWeight.bold,
-                  color: color.withOpacity(1.0),
+                  fontSize: isLargeText ? 42 : 23,
+                  fontWeight: FontWeight.w800,
+                  color: color,
                 ),
                 textAlign: TextAlign.center,
                 maxLines: 2,

@@ -301,13 +301,84 @@ class AddPatientModalState extends State<AddPatientModal> {
 
         await firestoreService.updatePatient(patientId, data);
 
+        // Retrieve existing schedules
         final existingSchedules =
             await firestoreService.getSchedulesForPatient(patientId);
+
+// Convert existing schedules to a map for easy lookup
+        final existingSchedulesMap = {for (var s in existingSchedules) s.id: s};
+
+// Retrieve fingerprint IDs from the schedules
+        List<String> existingFingerprintIDs = [];
+
+// Loop through existing schedules to extract fingerprint IDs
         for (final schedule in existingSchedules) {
-          await firestoreService.deleteSchedule(schedule.id);
-          await realtimeDatabaseService.deleteSchedule(schedule.id);
+          if (schedule.fingerprintIDs.isNotEmpty) {
+            existingFingerprintIDs.addAll(schedule.fingerprintIDs.split(","));
+          }
+        }
+
+// Merge existing fingerprint IDs with new ones (avoid duplicates)
+        Set<String> updatedFingerprintIDs = {
+          ...existingFingerprintIDs,
+          ...fingerprintIDs
+        };
+        final String fingerprintString = updatedFingerprintIDs.join(",");
+        logger.i('Updated fingerprint IDs: $fingerprintString');
+
+        for (final schedule in schedules) {
+          final existingSchedule = existingSchedulesMap[schedule['id']];
+
+          if (existingSchedule != null) {
+            // Debugging: Print schedule ID before update
+            logger.i('Updating existing schedule: ${existingSchedule.id}');
+
+            final updatedSchedule = Schedule(
+              id: existingSchedule.id, // Keep the same ID
+              patientId: patientId,
+              patientName: name,
+              time: schedule['time'] ?? '00:00',
+              slot: int.tryParse(schedule['slot'].toString()) ?? 0,
+              medicine: schedule['medicine'] ?? 'N/A',
+              fingerprintIDs:
+                  fingerprintString, // ✅ Append instead of overwrite
+              scheduleType: schedule['scheduleType'] as int,
+            );
+
+            await firestoreService.updateSchedule(
+                existingSchedule.id, updatedSchedule);
+            await realtimeDatabaseService.syncSchedule(updatedSchedule);
+          } else {
+            // ✅ Create a new schedule if it's not found in existingSchedulesMap
+            final String scheduleId = schedule['id'] ??
+                firestoreService.generateUniqueId('schedules');
+
+            final newSchedule = Schedule(
+              id: scheduleId,
+              patientId: patientId,
+              patientName: name,
+              time: schedule['time'] ?? '00:00',
+              slot: int.tryParse(schedule['slot'].toString()) ?? 0,
+              medicine: schedule['medicine'] ?? 'N/A',
+              fingerprintIDs:
+                  fingerprintString, // ✅ Append instead of overwrite
+              scheduleType: schedule['scheduleType'] as int,
+            );
+
+            await firestoreService.addSchedule(newSchedule);
+            await realtimeDatabaseService.syncSchedule(newSchedule);
+          }
+        }
+
+        // ✅ Delete only schedules that were removed by the user
+        for (final existingSchedule in existingSchedules) {
+          if (!schedules.any((s) => s['id'] == existingSchedule.id)) {
+            await firestoreService.deleteSchedule(existingSchedule.id);
+            await realtimeDatabaseService.deleteSchedule(existingSchedule.id);
+          }
         }
       } else {
+        // Creating a new patient
         patientId = firestoreService.generateUniqueId('patients');
 
         final patient = Patient(
@@ -319,30 +390,29 @@ class AddPatientModalState extends State<AddPatientModal> {
         );
 
         await firestoreService.addPatient(patient);
-      }
 
-      // ✅ Convert `fingerprintIDs` from List to String
-      final String fingerprintString = fingerprintIDs.join(",");
+        final String fingerprintString = fingerprintIDs.join(",");
+        logger.i('New fingerprint IDs (for new patient): $fingerprintString');
 
-      for (final schedule in schedules) {
-        final String scheduleId =
-            firestoreService.generateUniqueId('schedules');
+        for (final schedule in schedules) {
+          final String scheduleId =
+              firestoreService.generateUniqueId('schedules');
 
-        final scheduleData = Schedule(
-          id: scheduleId,
-          patientId: patientId,
-          patientName: name,
-          time: schedule['time'] ?? '00:00',
-          slot:
-              int.tryParse(schedule['slot'].toString()) ?? 0, // ✅ Always an int
-          medicine: schedule['medicine'] ?? 'N/A', // ✅ Always a String
-          fingerprintIDs:
-              fingerprintString, // ✅ Stored as a comma-separated string
-          scheduleType: schedule['scheduleType'] as int, // ✅ Always an int
-        );
+          final scheduleData = Schedule(
+            id: scheduleId,
+            patientId: patientId,
+            patientName: name,
+            time: schedule['time'] ?? '00:00',
+            slot: int.tryParse(schedule['slot'].toString()) ?? 0,
+            medicine: schedule['medicine'] ?? 'N/A',
+            fingerprintIDs:
+                fingerprintString, // ✅ Ensure updated fingerprint IDs
+            scheduleType: schedule['scheduleType'] as int,
+          );
 
-        await firestoreService.addSchedule(scheduleData);
-        await realtimeDatabaseService.syncSchedule(scheduleData);
+          await firestoreService.addSchedule(scheduleData);
+          await realtimeDatabaseService.syncSchedule(scheduleData);
+        }
       }
 
       if (mounted) {

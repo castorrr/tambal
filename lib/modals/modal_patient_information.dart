@@ -94,25 +94,32 @@ class PatientInformationModal extends StatelessWidget {
         return;
       }
 
-      // ✅ Successfully Dispensed → Log to Firestore
-      final schedule =
-          await firestoreService.getLatestScheduleForPatient(patientId);
+      final scheduleData =
+          await firestoreService.getLatestDispenseWithMedicine(patientId);
 
-      if (schedule != null) {
+      logger.i("🔹 Raw Schedule Type: ${scheduleData?["scheduleType"]}");
+
+      if (scheduleData != null) {
+        String scheduleType = scheduleData["scheduleType"]?.toString() ??
+            "Unknown"; // ✅ Explicitly convert to String
+        logger.i("✅ Assigned Schedule Type: $scheduleType");
+
         DispensingLog logEntry = DispensingLog(
           date: formattedDate,
-          time: formattedTime, // ✅ Using pre-stored formattedTime
+          time: formattedTime,
           patientId: patientId,
           patientName: patientName,
-          scheduleType: schedule.scheduleType.toString(),
-          medicine: schedule.medicine,
+          scheduleType: scheduleType, // ✅ Direct assignment
+          medicine: scheduleData["medicine"]
+              .toString(), // ✅ Ensure medicine is String
           source: "",
         );
 
+        logger.i("🚀 Final LogEntry Before Saving: ${logEntry.scheduleType}");
+
         await firestoreService.addDispensingLog(logEntry);
-        logger.i("Dispensing log saved successfully.");
       } else {
-        logger.e("No schedule found for patient.");
+        logger.e("⛔ No schedule found for patient.");
       }
 
       if (context.mounted) {
