@@ -7,6 +7,7 @@ class Schedule {
   final String fingerprintIDs; // Now a string instead of a list
   final String medicine;
   final int scheduleType;
+  final int latestModified;
 
   Schedule({
     required this.id,
@@ -17,6 +18,7 @@ class Schedule {
     this.fingerprintIDs = "", // Default to empty string
     required this.medicine,
     required this.scheduleType,
+    required this.latestModified,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class Schedule {
       'fingerprintIDs': fingerprintIDs, // Store as a string
       'medicine': medicine,
       'scheduleType': scheduleType,
+      'latestModified': latestModified,
     };
   }
 
@@ -42,6 +45,7 @@ class Schedule {
       fingerprintIDs: map['fingerprintIDs'] ?? "", // Default to empty string
       medicine: map['medicine'] as String,
       scheduleType: map['scheduleType'] as int,
+      latestModified: map['latestModified'] as int,
     );
   }
 }

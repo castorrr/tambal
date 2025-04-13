@@ -142,9 +142,9 @@ class DashboardPageState extends State<DashboardPage> {
 
   String _getMealTime(int hour) {
     const mealTimes = {
-      'Breakfast': [5, 6, 8, 9],
-      'Lunch': [10, 11, 13, 14],
-      'Dinner': [18, 19, 20, 21],
+      'Breakfast': [5, 6, 7, 8],
+      'Lunch': [10, 11, 12, 13],
+      'Dinner': [16, 17, 18, 19],
     };
 
     for (var entry in mealTimes.entries) {

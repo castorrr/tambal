@@ -343,11 +343,13 @@ class AddPatientModalState extends State<AddPatientModal> {
               fingerprintIDs:
                   fingerprintString, // ✅ Append instead of overwrite
               scheduleType: schedule['scheduleType'] as int,
+              latestModified: DateTime.now().millisecondsSinceEpoch,
             );
 
             await firestoreService.updateSchedule(
                 existingSchedule.id, updatedSchedule);
             await realtimeDatabaseService.syncSchedule(updatedSchedule);
+            await realtimeDatabaseService.resetScheduleUpdateStatus();
           } else {
             // ✅ Create a new schedule if it's not found in existingSchedulesMap
             final String scheduleId = schedule['id'] ??
@@ -363,10 +365,12 @@ class AddPatientModalState extends State<AddPatientModal> {
               fingerprintIDs:
                   fingerprintString, // ✅ Append instead of overwrite
               scheduleType: schedule['scheduleType'] as int,
+              latestModified: DateTime.now().millisecondsSinceEpoch,
             );
 
             await firestoreService.addSchedule(newSchedule);
             await realtimeDatabaseService.syncSchedule(newSchedule);
+            await realtimeDatabaseService.resetScheduleUpdateStatus();
           }
         }
 
@@ -408,10 +412,12 @@ class AddPatientModalState extends State<AddPatientModal> {
             fingerprintIDs:
                 fingerprintString, // ✅ Ensure updated fingerprint IDs
             scheduleType: schedule['scheduleType'] as int,
+            latestModified: DateTime.now().millisecondsSinceEpoch,
           );
 
           await firestoreService.addSchedule(scheduleData);
           await realtimeDatabaseService.syncSchedule(scheduleData);
+          await realtimeDatabaseService.resetScheduleUpdateStatus();
         }
       }
 

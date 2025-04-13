@@ -300,4 +300,13 @@ class RealtimeDatabaseService {
       _logger.e("Error resetting Realtime Database schedules: $e");
     }
   }
+
+  Future<void> resetScheduleUpdateStatus() async {
+    try {
+      await _databaseRef.child('latestUpdate/isUpdated').set(false);
+      _logger.i('isUpdated set to false successfully.');
+    } catch (e) {
+      _logger.e('Error updating isUpdated: $e');
+    }
+  }
 }

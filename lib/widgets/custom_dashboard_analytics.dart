@@ -11,23 +11,27 @@ class CustomDashboardAnalytics extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Row(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Row(
             children: [
-              _buildStreamStatCard(
-                title: "Patients",
-                stream: firestoreService.getTotalPatients(),
-                icon: Icons.group_rounded,
-                color: Colors.blue,
-                isLargeText: true,
-                onTap: () => onTabChange(1), // Switch to Patients Page
+              Flexible(
+                child: _buildStreamStatCard(
+                  title: "Patients",
+                  stream: firestoreService.getTotalPatients(),
+                  icon: Icons.group_rounded,
+                  color: Colors.blue,
+                  isLargeText: true, // 🔥 Patients text is large
+                  onTap: () => onTabChange(1),
+                ),
               ),
               const SizedBox(width: 16),
-              _buildUpcomingScheduleCard(),
+              Flexible(
+                child: _buildUpcomingScheduleCard(),
+              ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -37,49 +41,47 @@ class CustomDashboardAnalytics extends StatelessWidget {
     required Stream<T> stream,
     required IconData icon,
     required Color color,
-    bool isLargeText = false,
-    required VoidCallback onTap, // OnTap function to switch tabs
+    required VoidCallback onTap,
+    required bool isLargeText, // 🔥 Add isLargeText here
   }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap, // Call onTap function to change tab
-        child: StreamBuilder<T>(
-          stream: stream,
-          builder: (context, snapshot) {
-            String value = snapshot.hasData ? snapshot.data.toString() : "--";
-            return _buildStatCard(title, value, icon, color, isLargeText);
-          },
-        ),
+    return GestureDetector(
+      onTap: onTap,
+      child: StreamBuilder<T>(
+        stream: stream,
+        builder: (context, snapshot) {
+          String value = snapshot.hasData ? snapshot.data.toString() : "--";
+          return _buildStatCard(
+              title, value, icon, color, isLargeText); // Pass isLargeText
+        },
       ),
     );
   }
 
   Widget _buildUpcomingScheduleCard() {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTabChange(1),
-        child: StreamBuilder<Map<String, String>?>(
-          stream: firestoreService.getUpcomingSchedule(),
-          builder: (context, snapshot) {
-            String patientName = "--";
-            String scheduleTime = "--";
+    return GestureDetector(
+      onTap: () => onTabChange(1),
+      child: StreamBuilder<Map<String, String>?>(
+        stream: firestoreService.getUpcomingSchedule(),
+        builder: (context, snapshot) {
+          String patientName = "--";
+          String scheduleTime = "--";
 
-            if (snapshot.hasData && snapshot.data != null) {
-              var schedule = snapshot.data!;
-              patientName = schedule['patientName'] ?? "--";
-              scheduleTime = schedule['time'] ?? "--";
-            }
+          if (snapshot.hasData && snapshot.data != null) {
+            var schedule = snapshot.data!;
+            patientName = schedule['patientName'] ?? "--";
+            scheduleTime = schedule['time'] ?? "--";
+          }
 
-            String displayTime = scheduleTime != "--" ? scheduleTime : "";
-            return _buildStatCard(
-              "Upcoming Schedule",
-              "$patientName${displayTime.isNotEmpty ? '\n$displayTime' : ''}",
-              Icons.calendar_today_rounded,
-              Colors.purple,
-              false,
-            );
-          },
-        ),
+          String displayTime = scheduleTime != "--" ? scheduleTime : "";
+
+          return _buildStatCard(
+            "Upcoming Schedule",
+            "$patientName${displayTime.isNotEmpty ? '\n$displayTime' : ''}",
+            Icons.calendar_today_rounded,
+            Colors.purple,
+            false, // 🔥 Use smaller text for Upcoming Schedule
+          );
+        },
       ),
     );
   }
@@ -89,69 +91,84 @@ class CustomDashboardAnalytics extends StatelessWidget {
     String value,
     IconData icon,
     Color color,
-    bool isLargeText,
+    bool isLargeText, // 🔥 Now added here
   ) {
-    return Container(
-      height: 150,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 20,
-            spreadRadius: 2,
-            offset: const Offset(0, 6),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        double screenWidth = constraints.maxWidth;
+
+        // 🔥 Responsive font sizes based on screen width
+        double titleFontSize = screenWidth < 400 ? 10 : 13;
+        double valueFontSize = isLargeText
+            ? (screenWidth < 400 ? 26 : 40) // Large text for "Patients"
+            : (screenWidth < 400
+                ? 18
+                : 24); // 🔥 Smaller text for "Upcoming Schedule"
+
+        return Container(
+          height: 150,
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                blurRadius: 20,
+                spreadRadius: 2,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: color, size: 26),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade900,
-                      letterSpacing: 0.8,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: color, size: 26),
                     ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        title.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: titleFontSize,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Center(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize:
+                          valueFontSize, // 🔥 Smaller text for Upcoming Schedule
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const Spacer(),
               ],
             ),
-            const Spacer(),
-            Center(
-              child: Text(
-                value,
-                style: TextStyle(
-                  fontSize: isLargeText ? 42 : 23,
-                  fontWeight: FontWeight.w800,
-                  color: color,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const Spacer(),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

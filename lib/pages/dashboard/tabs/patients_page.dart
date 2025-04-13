@@ -300,6 +300,7 @@ class PatientsPageState extends State<PatientsPage> {
       try {
         await firestoreService.deletePatientAndSchedules(patientId);
         await realtimeDatabaseService.deleteSchedulesByPatient(patientId);
+        await realtimeDatabaseService.resetScheduleUpdateStatus();
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
