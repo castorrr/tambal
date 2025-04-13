@@ -43,10 +43,9 @@ class _MonitorPageState extends State<MonitorPage> {
     }
     return logs.where((log) {
       return log.patientName.toLowerCase().contains(_currentQuery) ||
-          log.day.toLowerCase().contains(_currentQuery) ||
+          log.date.toLowerCase().contains(_currentQuery) ||
           log.time.toLowerCase().contains(_currentQuery) ||
-          log.medicineList.any((medicine) =>
-              medicine.toString().toLowerCase().contains(_currentQuery));
+          log.medicine.toLowerCase().contains(_currentQuery);
     }).toList();
   }
 
@@ -124,9 +123,9 @@ class _MonitorPageState extends State<MonitorPage> {
     for (var log in filteredLogs) {
       sheet.appendRow([
         TextCellValue(log.patientName),
-        TextCellValue(log.day),
+        TextCellValue(log.date),
         TextCellValue(log.time),
-        TextCellValue(log.medicineList.join(', ')),
+        TextCellValue(log.medicine),
       ]);
     }
 
@@ -215,9 +214,9 @@ class _MonitorPageState extends State<MonitorPage> {
               data: filteredLogs
                   .map((log) => [
                         log.patientName,
-                        log.day,
+                        log.date,
                         log.time,
-                        log.medicineList.join(', '),
+                        log.medicine,
                       ])
                   .toList(),
             ),
@@ -314,9 +313,9 @@ class _MonitorPageState extends State<MonitorPage> {
                       final log = filteredLogs[index];
                       return RecentPatientCard(
                         patientName: log.patientName,
-                        day: log.day,
+                        day: log.date,
                         time: log.time,
-                        medicineList: log.medicineList,
+                        medicineList: log.scheduleType,
                       );
                     },
                   );

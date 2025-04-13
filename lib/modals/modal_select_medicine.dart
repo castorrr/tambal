@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:tambal/modals/modal_enter_medicine_details.dart';
 
 class ModalSelectMedicine extends StatefulWidget {
-  final List<Map<String, String>> availableMedicines;
-  final Function(List<Map<String, dynamic>>) onMedicinesSelected;
+  final Function(String) onMedicinesSelected; // ✅ Now expects a String
 
   const ModalSelectMedicine({
     super.key,
-    required this.availableMedicines,
     required this.onMedicinesSelected,
   });
 
@@ -17,94 +16,131 @@ class ModalSelectMedicine extends StatefulWidget {
 class ModalSelectMedicineState extends State<ModalSelectMedicine> {
   final List<Map<String, dynamic>> tempSelectedMedicines = [];
 
+  void _addCustomMedicine() async {
+    final Map<String, dynamic>? newMedicine =
+        await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) {
+        return const ModalEnterMedicineDetails();
+      },
+    );
+
+    if (newMedicine != null) {
+      setState(() {
+        tempSelectedMedicines.add(newMedicine);
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Sort medicines by slot before displaying
-    List<Map<String, String>> sortedMedicines = List.from(
-        widget.availableMedicines)
-      ..sort((a, b) => int.parse(a['slot']!).compareTo(int.parse(b['slot']!)));
-
     return AlertDialog(
-      title: const Text('Select Medicines, Slots, and Quantity'),
-      content: SingleChildScrollView(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: const Text(
+        'Add Medicines',
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      content: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.8, // 80% of screen width
+        height: 250, // Fixed modal height to avoid large expansion
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: sortedMedicines.map((medicine) {
-            final slot = medicine['slot']!;
-            final name = medicine['name']!;
-
-            // Find if the medicine is already selected
-            var selectedMedicine = tempSelectedMedicines.firstWhere(
-              (m) => m['name'] == name && m['slot'] == slot,
-              orElse: () => <String, dynamic>{},
-            );
-
-            bool isSelected = selectedMedicine.isNotEmpty;
-            int quantity = isSelected ? selectedMedicine['quantity'] : 1;
-
-            return Column(
-              children: [
-                CheckboxListTile(
-                  title: Text('Slot $slot: $name'),
-                  value: isSelected,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      if (value == true) {
-                        tempSelectedMedicines.add({
-                          'slot': slot,
-                          'name': name,
-                          'quantity': quantity,
-                        });
-                      } else {
-                        tempSelectedMedicines.removeWhere(
-                          (m) => m['name'] == name && m['slot'] == slot,
+          children: [
+            Expanded(
+              child: tempSelectedMedicines.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No medicines added yet.\nTap + to add medicines.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: tempSelectedMedicines.length,
+                      itemBuilder: (context, index) {
+                        final medicine = tempSelectedMedicines[index];
+                        return Card(
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 5),
+                          child: ListTile(
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 16),
+                            title: Text(
+                              '${medicine['name']} - ${medicine['dosage'] ?? 'N/A'}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle:
+                                Text('Quantity: ${medicine['quantity']}x'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  tempSelectedMedicines.removeAt(index);
+                                });
+                              },
+                            ),
+                          ),
                         );
-                      }
-                    });
-                  },
-                ),
-                if (isSelected)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      const Text('Quantity:'),
-                      IconButton(
-                        icon: const Icon(Icons.remove),
-                        onPressed: () {
-                          setState(() {
-                            if (quantity > 1) {
-                              selectedMedicine['quantity']--;
-                            }
-                          });
-                        },
-                      ),
-                      Text('$quantity'),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () {
-                          setState(() {
-                            selectedMedicine['quantity']++;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-              ],
-            );
-          }).toList(),
+                      },
+                    ),
+            ),
+            const SizedBox(height: 10),
+            // Floating + button for adding medicines
+            Align(
+              alignment: Alignment.centerRight,
+              child: FloatingActionButton(
+                mini: true,
+                onPressed: _addCustomMedicine,
+                backgroundColor: Colors.blue,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            widget.onMedicinesSelected(tempSelectedMedicines);
-            Navigator.of(context).pop();
-          },
-          child: const Text('Select'),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: tempSelectedMedicines.isNotEmpty
+                  ? () {
+                      // ✅ Convert medicines list to a single formatted string
+                      String formattedMedicines = tempSelectedMedicines
+                          .map((m) =>
+                              "${m['name']} ${m['dosage'] ?? 'N/A'} ${m['quantity']}x")
+                          .join(", "); // Comma-separated
+
+                      widget.onMedicinesSelected(
+                          formattedMedicines); // ✅ Pass as String
+                      Navigator.of(context).pop();
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Save Medicines',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
         ),
       ],
     );

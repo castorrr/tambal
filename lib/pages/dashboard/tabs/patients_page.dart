@@ -17,6 +17,8 @@ class PatientsPage extends StatefulWidget {
 class PatientsPageState extends State<PatientsPage> {
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
+  Map<String, String> readyForDispenseMap =
+      {}; // Stores "Ready for Dispense" info
 
   @override
   void dispose() {
@@ -110,8 +112,7 @@ class PatientsPageState extends State<PatientsPage> {
                   }
 
                   List<Patient> patients = snapshot.data!;
-                  patients.sort((a, b) =>
-                      a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+                  patients.sort((a, b) => a.slot.compareTo(b.slot));
 
                   if (_isSearching && _searchController.text.isNotEmpty) {
                     patients = patients
@@ -120,42 +121,61 @@ class PatientsPageState extends State<PatientsPage> {
                             .contains(_searchController.text.toLowerCase()))
                         .toList();
                   }
+                  return FutureBuilder<Map<String, String>>(
+                    future: _fetchReadyForDispense(
+                        patients), // Fetch "Ready for Dispense"
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                  return ListView.builder(
-                    itemCount: patients.length,
-                    itemBuilder: (context, index) {
-                      final patient = patients[index];
-                      return CustomPatientListCard(
-                        name: patient.name,
-                        gender: patient.gender,
-                        age: patient.age,
-                        onEdit: () {
-                          _showEditPatientModal(context, patient);
-                        },
-                        onDelete: () {
-                          _showDeleteConfirmation(
-                            context,
-                            patient.id,
-                            firestoreService,
-                            realtimeDatabaseService,
-                          );
-                        },
-                        onTap: () {
-                          // Show Patient Information Modal
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(20),
-                              ),
-                            ),
-                            builder: (context) => PatientInformationModal(
-                              patientName: patient.name,
-                              patientAge: patient.age,
-                              patientGender: patient.gender,
-                              patientId: patient.id,
-                            ),
+                      final readyForDispenseMap = snapshot.data!;
+
+                      return ListView.builder(
+                        itemCount: patients.length,
+                        itemBuilder: (context, index) {
+                          final patient = patients[index];
+
+                          return CustomPatientListCard(
+                            name: patient.name,
+                            gender: patient.gender,
+                            age: patient.age,
+                            slot: patient.slot,
+                            readyForDispense: readyForDispenseMap[patient.id] ??
+                                "Loading...", // ✅ Display "Ready for Dispense"
+                            onEdit: () {
+                              _showEditPatientModal(context, patient);
+                            },
+                            onDelete: () {
+                              _showDeleteConfirmation(
+                                context,
+                                patient.id,
+                                firestoreService,
+                                realtimeDatabaseService,
+                              );
+                            },
+                            onTap: () {
+                              // Show Patient Information Modal
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(20),
+                                  ),
+                                ),
+                                builder: (context) => PatientInformationModal(
+                                  patientName: patient.name,
+                                  patientAge: patient.age,
+                                  patientGender: patient.gender,
+                                  patientId: patient.id,
+                                  patientSlot: patient.slot,
+                                  onEdit: () {
+                                    _showEditPatientModal(context, patient);
+                                  },
+                                ),
+                              );
+                            },
                           );
                         },
                       );
@@ -167,38 +187,49 @@ class PatientsPageState extends State<PatientsPage> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showAddPatientModal(context);
+      floatingActionButton: StreamBuilder<List<Patient>>(
+        stream: firestoreService.getPatientsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.length < 5) {
+            return FloatingActionButton(
+              onPressed: () {
+                _showAddPatientModal(context);
+              },
+              backgroundColor: Colors.blue,
+              tooltip: 'Add Patient',
+              child: const Icon(Icons.add),
+            );
+          }
+          return const SizedBox
+              .shrink(); // Hide FAB if 5 or more patients exist
         },
-        backgroundColor: Colors.blue,
-        tooltip: 'Add Patient',
-        child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Future<Map<String, String>> _fetchReadyForDispense(
+      List<Patient> patients) async {
+    Map<String, String> dispenseStatuses = {};
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
+
+    for (var patient in patients) {
+      String latestDispense =
+          await firestoreService.getLatestDispense(patient.id);
+      dispenseStatuses[patient.id] = latestDispense;
+    }
+
+    return dispenseStatuses;
   }
 
   /// Show the Add Patient Modal
   void _showAddPatientModal(BuildContext context) async {
     try {
-      final firestoreService =
-          Provider.of<FirestoreService>(context, listen: false);
-      final fetchedMedicines =
-          await firestoreService.getAvailableMedicinesWithSlots();
-
-      List<Map<String, String>> availableMedicines =
-          fetchedMedicines.map((medicine) {
-        return {
-          'slot': medicine['slot'].toString(),
-          'name': medicine['name'].toString(),
-        };
-      }).toList();
-
       if (context.mounted) {
         showDialog(
           context: context,
           builder: (BuildContext context) {
-            return AddPatientModal(availableMedicines: availableMedicines);
+            return const AddPatientModal();
           },
         );
       }
@@ -214,25 +245,11 @@ class PatientsPageState extends State<PatientsPage> {
   /// Show the Edit Patient Modal
   void _showEditPatientModal(BuildContext context, Patient patient) async {
     try {
-      final firestoreService =
-          Provider.of<FirestoreService>(context, listen: false);
-      final fetchedMedicines =
-          await firestoreService.getAvailableMedicinesWithSlots();
-
-      List<Map<String, String>> availableMedicines =
-          fetchedMedicines.map((medicine) {
-        return {
-          'slot': medicine['slot'].toString(),
-          'name': medicine['name'].toString(),
-        };
-      }).toList();
-
       if (context.mounted) {
         showDialog(
           context: context,
           builder: (BuildContext context) {
             return AddPatientModal(
-              availableMedicines: availableMedicines,
               patient: patient,
             );
           },
@@ -283,6 +300,7 @@ class PatientsPageState extends State<PatientsPage> {
       try {
         await firestoreService.deletePatientAndSchedules(patientId);
         await realtimeDatabaseService.deleteSchedulesByPatient(patientId);
+        await realtimeDatabaseService.resetScheduleUpdateStatus();
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

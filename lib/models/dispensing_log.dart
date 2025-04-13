@@ -1,33 +1,48 @@
 class DispensingLog {
-  final String day;
+  final String date;
   final String time;
+  final String patientId;
   final String patientName;
-  final List<String> medicineList;
+  final String scheduleType;
+  final String medicine;
   final String source; // 🔹 "logging" or "alerts"
 
   DispensingLog({
-    required this.day,
+    required this.date,
     required this.time,
+    required this.patientId,
     required this.patientName,
-    required this.medicineList,
-    required this.source, // 🔹 Add source field
+    required this.scheduleType,
+    required this.medicine,
+    required this.source,
   });
 
   /// 🔹 Convert Firestore document data into a DispensingLog instance
   factory DispensingLog.fromFirestore(
       Map<String, dynamic> data, String source) {
     return DispensingLog(
-      day: data['day'] ?? 'Unknown',
+      date: data['date'] ?? 'Unknown',
       time: data['time'] ?? 'Unknown',
-      patientName: data['patientName'] ??
-          'Unknown', // Fix: Use patientName instead of patientId
-      medicineList: (data['medicines'] as List<dynamic>?)
-              ?.whereType<Map<String, dynamic>>()
-              .map((medicine) =>
-                  medicine['medicineName']?.toString() ?? 'Unknown')
-              .toList() ??
-          [], // Default to empty list if medicines is null
+      patientId: data['patientId'] ?? 'Unknown',
+      patientName: data['patientName'] ?? 'Unknown',
+      scheduleType: data['scheduleType'] != null
+          ? data['scheduleType'].toString()
+          : "Unknown",
+      medicine: data['medicine'] ?? 'Unknown',
       source: source, // 🔹 Assign source dynamically
     );
+  }
+
+  /// 🔹 Convert a DispensingLog instance to a Firestore-compatible Map
+  Map<String, dynamic> toFirestore() {
+    return {
+      'date': date,
+      'time': time,
+      'patientId': patientId,
+      'patientName': patientName,
+      'scheduleType': scheduleType,
+      'medicine': medicine,
+      'source': source,
+    };
   }
 }

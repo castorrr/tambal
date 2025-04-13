@@ -121,7 +121,7 @@ class CustomAlertCard extends StatelessWidget {
                     _buildInfoRow(
                       icon: Icons.medication,
                       iconColor: Colors.blue.shade400,
-                      label: 'Medicine',
+                      label: 'Medicine Schedule',
                       value: missedMedicine,
                     ),
                     const SizedBox(height: 12), // Reduced space to fix overflow

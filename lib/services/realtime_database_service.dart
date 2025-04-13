@@ -13,7 +13,6 @@ class RealtimeDatabaseService {
   final Logger _logger = Logger();
   StreamSubscription? _fingerprintListener;
   StreamSubscription? _dispensingLogSubscription;
-  StreamSubscription<DatabaseEvent>? _stockListener;
 
   // Method to set the dispense slot
   Future<void> setDispenseSlot(int slot) async {
@@ -195,84 +194,71 @@ class RealtimeDatabaseService {
 
   Future<void> _processDispensingLog(DatabaseEvent event) async {
     if (event.snapshot.value != null) {
-      _logger.i("📢 New dispensing log detected: ${event.snapshot.value}");
-
       Map<dynamic, dynamic> logData =
           Map<dynamic, dynamic>.from(event.snapshot.value as Map);
 
       String logId = event.snapshot.key ?? "";
-      bool isDispensed = logData['isDispensed'] ?? false;
-      String day = logData['day'] ?? "Unknown";
       String patientId = logData['patientId'] ?? "Unknown";
+      int scheduleType = logData['scheduleType'] ?? 0;
+      String medicine = logData['medicine'] ?? "Unknown";
       String time = logData['time'] ?? "Unknown";
-      List<dynamic> medicinesList = logData['medicines'] ?? [];
-      List<Map<String, dynamic>> updatedMedicines = [];
+      String date = logData['date'] ?? "Unknown";
+      bool isDispensed = logData['isDispensed'] ?? "Unknown";
 
-      // Fetch medicine names for all logs
-      for (var med in medicinesList) {
-        int slot = med['slot'] ?? 0;
-        int quantity = med['quantity'] ?? 1;
-        String medicineName = await _getMedicineNameFromSlot(slot);
-
-        updatedMedicines.add({
-          "slot": slot,
-          "quantity": quantity,
-          "medicineName": medicineName,
-        });
-      }
-
-      // 🔹 Fetch patient name based on patientId
+      // 🔹 Fetch patient name from Firestore using patientId
       String patientName = await _getPatientNameFromId(patientId);
 
-      // Update stock only if dispensed
-      //if (isDispensed) {
-      //await firestoreService.updateStocksBySlot(updatedMedicines);
-      //}
+      // 🔹 Convert scheduleType into readable format
+      String scheduleTypeName = _convertScheduleType(scheduleType);
 
-      // Determine target collection and store in Firestore with timestamp
+      // Determine target collection in Firestore
       String collectionName = isDispensed ? "logging" : "alerts";
+
+      // 🔹 Store data in Firestore with timestamp
       await _firestore.collection(collectionName).doc(logId).set({
-        "day": day,
-        "patientId": patientId, // Keep original ID for reference
-        "patientName": patientName, // Store resolved name
+        "patientId": patientId, // Keep patient ID
+        "patientName": patientName, // Store resolved name from Firestore
+        "scheduleType":
+            scheduleTypeName, // Convert scheduleType to readable string
+        "medicine": medicine,
         "time": time,
-        "medicines": updatedMedicines,
-        "timestamp": FieldValue.serverTimestamp(), // 🔹 Add Firestore timestamp
+        "date": date,
       });
 
-      // Remove processed log from Realtime Database
+      // 🔹 Remove processed log from Realtime Database
       await _databaseRef.child('dispensingLogs').child(logId).remove();
       _logger.i(
           "✅ Moved log to Firestore collection: $collectionName (ID: $logId)");
     }
   }
 
-// 🔹 Fetch medicine name from Firestore based on slot
-  Future<String> _getMedicineNameFromSlot(int slot) async {
-    final querySnapshot = await _firestore
-        .collection('medicine')
-        .where('slot', isEqualTo: slot)
-        .get();
-
-    if (querySnapshot.docs.isNotEmpty) {
-      return querySnapshot.docs.first.get('name') ?? "Unknown";
-    }
-    return "Unknown"; // Default if medicine is not found
-  }
-
-// 🔹 Fetch patient name from Firestore based on patientId
+  /// 🔹 Fetch patient name using patientId from Firestore
   Future<String> _getPatientNameFromId(String patientId) async {
     try {
-      DocumentSnapshot docSnapshot =
+      DocumentSnapshot doc =
           await _firestore.collection('patients').doc(patientId).get();
-
-      if (docSnapshot.exists) {
-        return docSnapshot.get('name') ?? "Unknown Patient";
+      if (doc.exists) {
+        return doc['name'] ?? "Unknown"; // Return patient name if available
+      } else {
+        return "Unknown"; // Return default if no patient found
       }
-      return "Unknown Patient"; // Default if patient is not found
     } catch (e) {
-      _logger.i("Error fetching patient name for ID $patientId: $e");
-      return "Unknown Patient"; // Return default in case of error
+      _logger.e("Error fetching patient name: $e");
+      return "Unknown"; // Return default on error
+    }
+  }
+
+  /// 🔹 Convert `scheduleType` (int) to readable format
+  String _convertScheduleType(int scheduleType) {
+    switch (scheduleType) {
+      case 1:
+        return "Breakfast";
+      case 2:
+        return "Lunch";
+      case 3:
+        return "Dinner";
+      default:
+        return "Unknown";
     }
   }
 
@@ -282,95 +268,45 @@ class RealtimeDatabaseService {
     _logger.i("Stopped listening to dispensingLogs");
   }
 
-  Future<void> syncMedicineFromFirestore(String medicineId) async {
+  /// 🔹 Hardcoded method to add a dispensing log to Realtime Database
+  Future<void> addTestDispensingLog() async {
     try {
-      _logger.i(
-          'Fetching medicine $medicineId from Firestore to sync with RTDB...');
+      // Generate a unique key for the new log
+      String logId = _databaseRef.child("dispensingLogs").push().key ??
+          DateTime.now().millisecondsSinceEpoch.toString();
 
-      // Fetch the medicine document from Firestore
-      DocumentSnapshot docSnapshot =
-          await _firestore.collection('medicine').doc(medicineId).get();
+      // Hardcoded dispensing log data
+      Map<String, dynamic> logData = {
+        "patientId": "Iyj9SpJnTJbgnIpGQ813",
+        "scheduleType": 1, // 1 = Breakfast
+        "medicine": "Naproxen 550 MG 1×, Folanerve N/A 1×, Bewell-C N/A 1×",
+        "time": "08:00 AM",
+        "date": "2/25/2025",
+        "isDispensed": "No",
+      };
 
-      if (docSnapshot.exists) {
-        Map<String, dynamic> medicineData =
-            docSnapshot.data() as Map<String, dynamic>;
-
-        // ✅ Remove 'timestamp' & 'lastUpdated' if they exist
-        medicineData.remove('timestamp');
-        medicineData.remove('lastUpdated');
-
-        // ✅ Store medicine data in RTDB under "medicines/{medicineId}"
-        await _databaseRef.child('medicines/$medicineId').set(medicineData);
-
-        _logger
-            .i('Medicine $medicineId successfully synced to Realtime Database');
-      } else {
-        _logger.w(
-            'Medicine $medicineId does not exist in Firestore. Skipping RTDB sync.');
-      }
+      // Save the log data to the Realtime Database under 'dispensingLogs'
+      await _databaseRef.child("dispensingLogs/$logId").set(logData);
     } catch (e) {
-      _logger.e(
-          'Failed to sync medicine $medicineId from Firestore to Realtime Database: $e');
+      _logger.i("Hotdog");
     }
   }
 
-  Future<void> deleteMedicine(String medicineId) async {
+  Future<void> resetRealtimeDatabaseSchedules() async {
     try {
-      // Delete from Firestore first
-      await _firestore.collection('medicine').doc(medicineId).delete();
-
-      // Then delete from RTDB
-      await _databaseRef.child('medicines').child(medicineId).remove();
-
-      _logger.i(
-          'Medicine $medicineId deleted from Firestore and Realtime Database');
+      await _databaseRef.child('schedules').remove();
+      _logger.i("Realtime Database schedules node cleared.");
     } catch (e) {
-      _logger
-          .e('Failed to delete medicine $medicineId from Firestore/RTDB: $e');
+      _logger.e("Error resetting Realtime Database schedules: $e");
     }
   }
 
-  void listenToStockChanges() {
-    _logger.i("Listening to stock changes in Realtime Database...");
-
-    // Listen to all medicines' stock updates inside "medicines" node
-    _stockListener =
-        _databaseRef.child('medicines').onChildChanged.listen((event) async {
-      if (event.snapshot.exists) {
-        String medicineId = event.snapshot.key ?? "";
-        Map<dynamic, dynamic> updatedData =
-            event.snapshot.value as Map<dynamic, dynamic>;
-
-        // ✅ Check if "stock" exists in the update
-        if (updatedData.containsKey("stock")) {
-          int updatedStock = updatedData["stock"];
-          _logger.i(
-              "Stock updated in RTDB for $medicineId: New Stock = $updatedStock");
-
-          // ✅ Sync stock update to Firestore
-          await _syncStockToFirestore(medicineId, updatedStock);
-        }
-      }
-    });
-  }
-
-  /// ✅ Sync Stock Changes from RTDB to Firestore
-  Future<void> _syncStockToFirestore(String medicineId, int newStock) async {
+  Future<void> resetScheduleUpdateStatus() async {
     try {
-      await _firestore.collection("medicine").doc(medicineId).update({
-        "stock": newStock,
-        "lastUpdated": FieldValue.serverTimestamp(), // Optional timestamp
-      });
-
-      _logger.i("Stock for $medicineId successfully updated in Firestore.");
+      await _databaseRef.child('latestUpdate/isUpdated').set(false);
+      _logger.i('isUpdated set to false successfully.');
     } catch (e) {
-      _logger.e("Failed to update stock for $medicineId in Firestore: $e");
+      _logger.e('Error updating isUpdated: $e');
     }
-  }
-
-  /// ✅ Stop Listening When Not Needed
-  void stopStockListener() {
-    _stockListener?.cancel();
-    _logger.i("Stopped listening to stock changes.");
   }
 }

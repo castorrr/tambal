@@ -15,6 +15,8 @@ class PatientInformationModal extends StatelessWidget {
   final int patientAge;
   final String patientGender;
   final String patientId;
+  final int patientSlot;
+  final VoidCallback onEdit;
 
   const PatientInformationModal({
     super.key,
@@ -22,6 +24,8 @@ class PatientInformationModal extends StatelessWidget {
     required this.patientAge,
     required this.patientGender,
     required this.patientId,
+    required this.patientSlot,
+    required this.onEdit,
   });
 
   // Function to get gender-based image
@@ -33,275 +37,98 @@ class PatientInformationModal extends StatelessWidget {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return DefaultTabController(
-      length: 2, // Number of tabs: Schedule and Activity
-      child: Container(
-        height: screenHeight * 0.9, // Modal height set to 90% of the screen
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(30), // Rounded top corners
-          ),
-        ),
-        child: Column(
-          children: [
-            // Upper Section with Avatar and Patient Info
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.blue.shade300,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
-                ),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 50,
-                    height: 5,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.black45,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  // 🔹 Centering the CircleAvatar properly
-                  Center(
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 90, // Ensures it's a circle
-                          height: 90,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white, // Background color
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26, // Soft shadow
-                                blurRadius: 6,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: -3, // Move up slightly for the pop-out effect
-                          left: 0,
-                          right: 0,
-                          child: ClipOval(
-                            child: Image.asset(
-                              getGenderImage(
-                                  patientGender), // Load the correct gender image
-                              width:
-                                  85, // Must match height to keep it a perfect circle
-                              height: 92,
-                              fit: BoxFit
-                                  .cover, // Ensures it fills without distortion
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    patientName,
-                    style: const TextStyle(
-                      fontSize: 25,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Age: $patientAge',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 20),
-                      Text(
-                        'Gender: $patientGender',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Tab Bar
-            const TabBar(
-              labelColor: Colors.black,
-              indicatorColor: Colors.blue,
-              tabs: [
-                Tab(text: 'Schedule'),
-                Tab(text: 'Activity'),
-              ],
-            ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  ScheduleTab(
-                    patientId: patientId,
-                    patientName: patientName,
-                  ),
-                  ActivityTab(patientId: patientId),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Helper function to get initials from name
-  String getInitials(String name) {
-    return name.split(' ').map((word) => word[0]).join().toUpperCase();
-  }
-}
-
-class ScheduleTab extends StatelessWidget {
-  final String patientId;
-  final String patientName;
-
-  const ScheduleTab({
-    super.key,
-    required this.patientId,
-    required this.patientName,
-  });
-
-  Future<void> _dispenseMedicines(
-      BuildContext context, List<Map<String, dynamic>> medicines) async {
-    final firestoreService =
-        Provider.of<FirestoreService>(context, listen: false);
+  Future<void> _dispenseMedicines(BuildContext context, int patientSlot) async {
     final realtimeDatabaseService =
         Provider.of<RealtimeDatabaseService>(context, listen: false);
+    final firestoreService =
+        Provider.of<FirestoreService>(context, listen: false);
     final Logger logger = Logger();
 
+    // ✅ Capture time before async calls to avoid using BuildContext later
+    final DateTime now = DateTime.now();
+    final String formattedDate = "${now.month}/${now.day}/${now.year}";
+
+    // ✅ Use MaterialLocalizations to format time without needing BuildContext later
+    final String formattedTime = MaterialLocalizations.of(context)
+        .formatTimeOfDay(TimeOfDay.fromDateTime(now));
+
     // Show the loading dialog
-    _showLoadingDialog(context, "Checking Medicines and Dispensing");
+    if (context.mounted) {
+      _showLoadingDialog(context, "Dispensing Medicines...");
+    }
 
     try {
-      // Validate medicines data
-      for (final medicine in medicines) {
-        if (medicine['name'] == null) {
-          logger.e('Medicine with missing name found: $medicine');
-          if (context.mounted) {
-            Navigator.of(context).pop();
-            _showResultDialog(
-                context, false, 'One or more medicines have invalid data.');
-          }
-          return;
+      bool isDispensed = false;
+
+      logger.i('Setting patient slot $patientSlot to dispense medicines.');
+      await realtimeDatabaseService.setDispenseSlot(patientSlot);
+
+      // Wait for the ESP32 to confirm dispensing
+      await Future.delayed(const Duration(milliseconds: 500));
+      final Stopwatch timer = Stopwatch()..start();
+
+      while (timer.elapsed < const Duration(seconds: 10)) {
+        final int? currentSlot =
+            await realtimeDatabaseService.getDispenseSlot();
+        if (currentSlot == 0) {
+          isDispensed = true;
+          logger.i(
+              'Medicines dispensed successfully from patient slot $patientSlot.');
+          break;
         }
+        await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      // Check if all stocks are sufficient
-      final allStocksAvailable =
-          await firestoreService.checkStocksByName(medicines);
+      timer.stop();
 
-      if (!allStocksAvailable) {
-        if (context.mounted) {
-          Navigator.of(context).pop(); // Dismiss loading dialog
-          _showResultDialog(
-              context, false, 'Insufficient stock for one or more medicines.');
-        }
+      if (!isDispensed) {
         logger.e(
-            'Dispense aborted: Insufficient stock for one or more medicines.');
+            'Failed to dispense medicines from patient slot $patientSlot within the timeout period.');
+        await realtimeDatabaseService.setDispenseSlot(0); // Reset dispense slot
+
+        if (context.mounted) {
+          Navigator.of(context).pop(); // Dismiss the loading dialog
+          _showResultDialog(context, false,
+              'Failed to dispense medicines from patient slot $patientSlot.');
+        }
         return;
       }
 
-      // Proceed to dispense medicines
-      bool allDispensedSuccessfully = true;
+      final scheduleData =
+          await firestoreService.getLatestDispenseWithMedicine(patientId);
 
-      for (final medicine in medicines) {
-        final int slot = (medicine['slot'] is int)
-            ? medicine['slot']
-            : int.parse(medicine['slot']);
-        final int quantity = (medicine['quantity'] is int)
-            ? medicine['quantity']
-            : int.parse(medicine['quantity']);
+      logger.i("🔹 Raw Schedule Type: ${scheduleData?["scheduleType"]}");
 
-        for (int i = 0; i < quantity; i++) {
-          bool isDispensed = false;
+      if (scheduleData != null) {
+        String scheduleType = scheduleData["scheduleType"]?.toString() ??
+            "Unknown"; // ✅ Explicitly convert to String
+        logger.i("✅ Assigned Schedule Type: $scheduleType");
 
-          logger.i(
-              'Setting slot $slot to dispense medicine ${medicine['name']} (Attempt ${i + 1})');
-          await realtimeDatabaseService.setDispenseSlot(slot);
+        DispensingLog logEntry = DispensingLog(
+          date: formattedDate,
+          time: formattedTime,
+          patientId: patientId,
+          patientName: patientName,
+          scheduleType: scheduleType, // ✅ Direct assignment
+          medicine: scheduleData["medicine"]
+              .toString(), // ✅ Ensure medicine is String
+          source: "",
+        );
 
-          // Wait for the ESP32 to confirm dispensing
-          await Future.delayed(const Duration(milliseconds: 500));
-          final Stopwatch timer = Stopwatch()..start();
+        logger.i("🚀 Final LogEntry Before Saving: ${logEntry.scheduleType}");
 
-          while (timer.elapsed < const Duration(seconds: 10)) {
-            final int? currentSlot =
-                await realtimeDatabaseService.getDispenseSlot();
-            if (currentSlot == 0) {
-              isDispensed = true;
-              logger.i(
-                  'Medicine ${medicine['name']} dispensed successfully from slot $slot.');
-              break;
-            }
-            await Future.delayed(const Duration(milliseconds: 500));
-          }
-
-          timer.stop();
-
-          if (!isDispensed) {
-            allDispensedSuccessfully = false;
-            logger.e(
-                'Failed to dispense medicine ${medicine['name']} from slot $slot within the timeout period.');
-            await realtimeDatabaseService
-                .setDispenseSlot(0); // Reset the dispense slot
-            if (context.mounted) {
-              Navigator.of(context).pop(); // Dismiss the loading dialog
-              _showResultDialog(context, false,
-                  'Failed to dispense medicine ${medicine['name']} from slot $slot.');
-            }
-            return; // Stop the process on failure
-          }
-        }
-      }
-
-      // Update stocks after successful dispensing
-      if (allDispensedSuccessfully) {
-        logger.i('Updating stocks...');
-        await firestoreService.updateStocksBySlot(medicines);
-        logger.i('Stocks updated successfully after dispensing.');
+        await firestoreService.addDispensingLog(logEntry);
       } else {
-        logger.w('Dispensing failed. Stocks will not be updated.');
+        logger.e("⛔ No schedule found for patient.");
       }
 
       if (context.mounted) {
         Navigator.of(context).pop(); // Dismiss the loading dialog
-        _showResultDialog(
-            context,
-            allDispensedSuccessfully,
-            allDispensedSuccessfully
-                ? 'All medicines dispensed successfully!'
-                : 'Failed to dispense some medicines. Please try again.');
+        _showResultDialog(context, true, 'Medicines dispensed successfully!');
       }
-
-      logger.i(allDispensedSuccessfully
-          ? 'All medicines dispensed successfully.'
-          : 'Some medicines failed to dispense.');
     } catch (e) {
       logger.e('An error occurred during dispensing: $e');
+
       if (context.mounted) {
         Navigator.of(context).pop(); // Dismiss the loading dialog
         _showResultDialog(
@@ -310,14 +137,14 @@ class ScheduleTab extends StatelessWidget {
     }
   }
 
-  void _confirmDispense(BuildContext context, Schedule schedule) {
+  void _confirmDispense(BuildContext context, int patientSlot) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Confirm Dispense'),
-          content: Text(
-            'Do you want to dispense the medicines in this schedule?\n\n${schedule.medicines.map((m) => "${m['name']} (x${m['quantity']})").join("\n")} ',
+          content: const Text(
+            'Do you want to dispense the medicines of this patient?', // ✅ Display as string
           ),
           actions: [
             TextButton(
@@ -329,7 +156,7 @@ class ScheduleTab extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                _dispenseMedicines(context, schedule.medicines);
+                _dispenseMedicines(context, patientSlot); // ✅ Pass slot only
               },
               child: const Text('Confirm'),
             ),
@@ -378,6 +205,208 @@ class ScheduleTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Stack(
+      children: [
+        DefaultTabController(
+          length: 2, // Number of tabs: Schedule and Activity
+          child: Container(
+            height: screenHeight * 0.9, // Modal height set to 90% of the screen
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(30), // Rounded top corners
+              ),
+            ),
+            child: Column(
+              children: [
+                // Upper Section with Avatar and Patient Info
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade300,
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(20),
+                    ),
+                  ),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 🔹 Top Handle Bar (for dragging the modal)
+                      Container(
+                        width: 50,
+                        height: 5,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+
+                      // 🔹 Avatar & Edit Button (Stacked together)
+                      Stack(
+                        clipBehavior: Clip.none, // ✅ Ensures nothing is clipped
+                        children: [
+                          // 🔹 Centered Circle Avatar
+                          Center(
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 90,
+                                  height: 90,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black26,
+                                        blurRadius: 6,
+                                        offset: Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Positioned(
+                                  top: -3,
+                                  left: 0,
+                                  right: 0,
+                                  child: ClipOval(
+                                    child: Image.asset(
+                                      getGenderImage(patientGender),
+                                      width: 85,
+                                      height: 92,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // 🔹 Edit Button (Upper-right, clickable)
+                          Positioned(
+                            top: -15, // ✅ Moves button slightly down
+                            right: -5, // ✅ Aligns it to the right
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.translucent,
+                              // ✅ Ensures it remains tappable
+                              child: Material(
+                                color: Colors.transparent,
+                                // ✅ Fixes tap issues on Android
+                                child: IconButton(
+                                  icon: const Icon(Icons.edit,
+                                      color: Colors.white, size: 26),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    onEdit(); // ✅ Call edit function
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // 🔹 Name, Age & Gender (Placed below the Avatar)
+                      const SizedBox(height: 12),
+                      // ✅ Space between Avatar & Name
+                      Text(
+                        patientName,
+                        style: const TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Age: $patientAge',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Text(
+                            'Gender: $patientGender',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Tab Bar
+                const TabBar(
+                  labelColor: Colors.black,
+                  indicatorColor: Colors.blue,
+                  tabs: [
+                    Tab(text: 'Schedule'),
+                    Tab(text: 'Activity'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      ScheduleTab(
+                        patientId: patientId,
+                        patientName: patientName,
+                      ),
+                      ActivityTab(patientId: patientId),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // 🔹 Floating Action Button (FAB) - Positioned Above Modal Bottom
+        Positioned(
+          bottom: 30, // ✅ Adjusted to float above the bottom
+          right: 20, // ✅ Positioned to the right
+          child: FloatingActionButton(
+            onPressed: () {
+              _confirmDispense(context, patientSlot);
+            },
+            backgroundColor: Colors.blue, // Customize button color
+            child: const Icon(Icons.medical_services_rounded,
+                size: 28, color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper function to get initials from name
+  String getInitials(String name) {
+    return name.split(' ').map((word) => word[0]).join().toUpperCase();
+  }
+}
+
+class ScheduleTab extends StatelessWidget {
+  final String patientId;
+  final String patientName;
+
+  const ScheduleTab({
+    super.key,
+    required this.patientId,
+    required this.patientName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final firestoreService =
         Provider.of<FirestoreService>(context, listen: false);
 
@@ -393,7 +422,11 @@ class ScheduleTab extends StatelessWidget {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const Center(child: Text('No schedules found.'));
         }
+
+        // ✅ Sort the schedules based on scheduleType (Breakfast -> Lunch -> Dinner)
         final schedules = snapshot.data!;
+        schedules.sort((a, b) => a.scheduleType.compareTo(b.scheduleType));
+
         return ListView.builder(
           itemCount: schedules.length,
           itemBuilder: (context, index) {
@@ -402,7 +435,7 @@ class ScheduleTab extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
               child: CustomScheduleCard(
                 schedule: schedule,
-                onTap: () => _confirmDispense(context, schedule),
+                onTap: () => {},
               ),
             );
           },
@@ -447,14 +480,14 @@ class ActivityTab extends StatelessWidget {
               child: log.source == "logging"
                   ? RecentPatientCard(
                       patientName: log.patientName,
-                      day: log.day,
+                      day: log.date,
                       time: log.time,
-                      medicineList: log.medicineList,
+                      medicineList: log.scheduleType,
                     )
                   : CustomAlertCard(
                       patientName: log.patientName,
-                      missedMedicine: log.medicineList.join(','),
-                      dateMissed: log.day,
+                      missedMedicine: log.scheduleType,
+                      dateMissed: log.date,
                       timeMissed: log.time,
                     ),
             );
