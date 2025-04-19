@@ -3,7 +3,8 @@ class Patient {
   final String name;
   final int age;
   final String gender;
-  final int slot; // Patient slot number (1-5)
+  final int slot; // Patient slot number (1-3)
+  final String? userId; // Nullable to handle old records
 
   Patient({
     required this.id,
@@ -11,6 +12,7 @@ class Patient {
     required this.age,
     required this.gender,
     required this.slot,
+    this.userId,
   });
 
   /// Convert Firestore data into a Patient object
@@ -21,6 +23,7 @@ class Patient {
       age: (data['age'] ?? 0).toInt(),
       gender: data['gender'] ?? '',
       slot: (data['slot'] ?? 0).toInt(), // Ensure slot is an integer
+      userId: data['userId'],
     );
   }
 
@@ -32,6 +35,7 @@ class Patient {
       'age': age,
       'gender': gender,
       'slot': slot,
+      'userId': userId,
     };
   }
 }
