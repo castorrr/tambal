@@ -7,6 +7,7 @@ class UserModel {
   final String? profilePicture;
   final String username; // Add username here
   final DateTime createdAt;
+  final List<String>? patients;
 
   UserModel({
     required this.uid,
@@ -15,6 +16,7 @@ class UserModel {
     this.profilePicture,
     required this.username, // Include username in constructor
     required this.createdAt,
+    this.patients,
   });
 
   Map<String, dynamic> toMap() {
@@ -25,6 +27,7 @@ class UserModel {
       'profilePicture': profilePicture,
       'username': username, // Map username
       'createdAt': createdAt.toIso8601String(),
+      'patients': patients,
     };
   }
 
@@ -36,6 +39,9 @@ class UserModel {
       profilePicture: map['profilePicture'],
       username: map['username'], // Map username
       createdAt: DateTime.parse(map['createdAt']),
+      patients: map['patients'] != null
+          ? List<String>.from(map['patients'])
+          : null, // ✅ convert to List<String>
     );
   }
 }

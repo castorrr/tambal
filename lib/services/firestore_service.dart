@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import 'package:tambal/models/patient.dart';
 import 'package:tambal/models/schedule.dart';
 import 'package:tambal/models/dispensing_log.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,11 +20,16 @@ class FirestoreService {
 
   // Method to add a new patient to Firestore
   Future<void> addPatient(Patient patient) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     try {
       await _firestore
           .collection('patients')
           .doc(patient.id)
           .set(patient.toMap());
+
+      await _firestore.collection('users').doc(uid).update({
+        'patients': FieldValue.arrayUnion([patient.id]),
+      });
       _logger.i('Patient ${patient.name} added successfully to Firestore.');
     } catch (e) {
       _logger.e('Failed to add patient: $e');
@@ -33,10 +39,21 @@ class FirestoreService {
 
   // Method to get a stream of patients from Firestore
   Stream<List<Patient>> getPatientsStream() {
-    return _firestore.collection('patients').snapshots().map((snapshot) {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      // If no user is logged in, return an empty stream
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('patients')
+        .where('userId', isEqualTo: userId) // ✅ Filter by userId
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs.map((doc) {
         final data = doc.data();
-        data['id'] = doc.id; // Manually add Firestore document ID
+        data['id'] = doc.id; // Add Firestore document ID manually
         return Patient.fromMap(data);
       }).toList();
     });
@@ -178,9 +195,33 @@ class FirestoreService {
 
   //Analytics
   Stream<int> getTotalPatients() {
-    return _firestore.collection('patients').snapshots().map((snapshot) {
-      return snapshot.docs.length; // Count total patients
-    });
+    return Stream.fromFuture(_computeTotalPatients());
+  }
+
+  Future<int> _computeTotalPatients() async {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) return 0;
+
+    // 🔹 Step 1: Get the user document
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final userData = userDoc.data();
+
+    if (userData == null || userData['patients'] == null) return 0;
+
+    final List<String> userPatientIds = List<String>.from(userData['patients']);
+
+    // 🔹 Step 2: Get all existing patient documents from the 'patients' collection
+    final patientSnapshot =
+        await FirebaseFirestore.instance.collection('patients').get();
+
+    // 🔹 Step 3: Count only those that match the IDs in the user's patient list
+    final total = patientSnapshot.docs
+        .where((doc) => userPatientIds.contains(doc.id))
+        .length;
+
+    return total;
   }
 
   Stream<Map<String, String>?> getUpcomingSchedule() {
@@ -239,38 +280,63 @@ class FirestoreService {
   }
 
   Stream<List<DispensingLog>> streamDispensingLogs(
-      {required String collectionName}) {
-    return _firestore.collection(collectionName).snapshots().map((snapshot) {
+      {required String collectionName}) async* {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      yield []; // No user logged in
+      return;
+    }
+
+    // 🔹 Step 1: Get the list of patient IDs from the user document
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final userData = userDoc.data();
+
+    if (userData == null || userData['patients'] == null) {
+      yield []; // No patients listed
+      return;
+    }
+
+    final List<String> patientIds = List<String>.from(userData['patients']);
+
+    // 🔹 Step 2: Listen to the log collection and filter only user's patients
+    yield* FirebaseFirestore.instance
+        .collection(collectionName)
+        .snapshots()
+        .map((snapshot) {
       List<DispensingLog> dispensingLogs = [];
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
+        final patientId = data['patientId'];
 
-        final dateStr = data['date'] ?? '01/01/1970'; // Default old date
-        final timeStr = data['time'] ?? '12:00 AM'; // Default fallback
-        final patientId = data['patientId'] ?? "Unknown";
-        final patientName = data['patientName'] ?? 'Unknown';
-        final medicine = data['medicine'] ?? 'Unknown';
+        // ✅ Only include if patientId is in current user's patients list
+        if (patientIds.contains(patientId)) {
+          final dateStr = data['date'] ?? '01/01/1970';
+          final timeStr = data['time'] ?? '12:00 AM';
+          final patientName = data['patientName'] ?? 'Unknown';
+          final medicine = data['medicine'] ?? 'Unknown';
 
-        // Add the log data to the list
-        dispensingLogs.add(
-          DispensingLog(
-            date: dateStr,
-            time: timeStr,
-            patientId: patientId,
-            patientName: patientName,
-            scheduleType: data['scheduleType'] ?? 'Unknown',
-            medicine: medicine,
-            source: '',
-          ),
-        );
+          dispensingLogs.add(
+            DispensingLog(
+              date: dateStr,
+              time: timeStr,
+              patientId: patientId,
+              patientName: patientName,
+              scheduleType: data['scheduleType'] ?? 'Unknown',
+              medicine: medicine,
+              source: '',
+            ),
+          );
+        }
       }
 
-      // 🔹 Sort by date first, then by time (newest first)
+      // 🔹 Sort logs by datetime (latest first)
       dispensingLogs.sort((a, b) {
         DateTime dateTimeA = _parseDateTime(a.date, a.time);
         DateTime dateTimeB = _parseDateTime(b.date, b.time);
-        return dateTimeB.compareTo(dateTimeA); // Descending order
+        return dateTimeB.compareTo(dateTimeA);
       });
 
       return dispensingLogs;
@@ -393,34 +459,60 @@ class FirestoreService {
     }
   }
 
-  Stream<DispensingLog?> getMostRecentPatientAlert() {
-    return _firestore.collection('alerts').snapshots().map((snapshot) {
-      if (snapshot.docs.isEmpty) {
-        return null;
-      } // 🔹 Return null if no alerts exist
+  Stream<DispensingLog?> getMostRecentPatientAlert() async* {
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
-      // 🔹 Ensure we're working with the correct Firestore snapshot type
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> documents =
-          snapshot.docs.cast<QueryDocumentSnapshot<Map<String, dynamic>>>();
+    if (userId == null) {
+      yield null;
+      return;
+    }
 
-      // 🔹 Find the most recent alert by sorting
-      var mostRecentDoc = documents.reduce((a, b) {
-        DateTime dateTimeA = _parseDateTime(
-            a.data()['date'] ?? '01/01/1970', a.data()['time'] ?? '12:00 AM');
-        DateTime dateTimeB = _parseDateTime(
-            b.data()['date'] ?? '01/01/1970', b.data()['time'] ?? '12:00 AM');
-        return dateTimeA.isAfter(dateTimeB) ? a : b;
+    // Step 1: Get the patient's ID list from the user document
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final userData = userDoc.data();
+
+    if (userData == null || userData['patients'] == null) {
+      yield null;
+      return;
+    }
+
+    final List<String> patientIds = List<String>.from(userData['patients']);
+
+    // Step 2: Listen to the alerts collection and filter matching patientId
+    yield* FirebaseFirestore.instance
+        .collection('alerts')
+        .snapshots()
+        .map((snapshot) {
+      final docs = snapshot.docs.where((doc) {
+        final patientId = doc.data()['patientId'];
+        return patientIds.contains(patientId);
+      }).toList();
+
+      if (docs.isEmpty) return null;
+
+      // Step 3: Sort and get most recent
+      docs.sort((a, b) {
+        final dateTimeA = _parseDateTime(
+          a.data()['date'] ?? '01/01/1970',
+          a.data()['time'] ?? '12:00 AM',
+        );
+        final dateTimeB = _parseDateTime(
+          b.data()['date'] ?? '01/01/1970',
+          b.data()['time'] ?? '12:00 AM',
+        );
+        return dateTimeB.compareTo(dateTimeA); // Newest first
       });
 
-      final data = mostRecentDoc.data();
+      final mostRecent = docs.first.data();
 
       return DispensingLog(
-        date: data['date'] ?? 'Unknown',
-        time: data['time'] ?? 'Unknown',
-        patientName: data['patientName'] ?? 'Unknown',
-        patientId: data['patientId'] ?? 'Unknown',
-        scheduleType: data['scheduleType'] ?? 'Unknown',
-        medicine: data['medicine'] ?? 'Unknown',
+        date: mostRecent['date'] ?? 'Unknown',
+        time: mostRecent['time'] ?? 'Unknown',
+        patientName: mostRecent['patientName'] ?? 'Unknown',
+        patientId: mostRecent['patientId'] ?? 'Unknown',
+        scheduleType: mostRecent['scheduleType'] ?? 'Unknown',
+        medicine: mostRecent['medicine'] ?? 'Unknown',
         source: 'alerts',
       );
     });

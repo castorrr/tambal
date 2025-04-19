@@ -6,6 +6,7 @@ import 'package:tambal/modals/modal_select_days.dart';
 import 'package:tambal/modals/modal_select_medicine.dart';
 import 'package:tambal/services/firestore_service.dart';
 import 'package:tambal/services/realtime_database_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 
 class AddPatientModal extends StatefulWidget {
@@ -27,7 +28,7 @@ class AddPatientModalState extends State<AddPatientModal> {
   final FirestoreService firestoreService = FirestoreService();
   final RealtimeDatabaseService realtimeDatabaseService =
       RealtimeDatabaseService();
-
+  final String? userId = FirebaseAuth.instance.currentUser?.uid;
   List<int> availablePatientSlots = [1, 2, 3, 4, 5]; // Slots 1-5
   String? selectedPatientSlot; // Holds assigned patient number
   String selectedGender = 'Male';
@@ -265,6 +266,7 @@ class AddPatientModalState extends State<AddPatientModal> {
     final int? age = int.tryParse(ageController.text);
     final int slot =
         int.tryParse(selectedPatientSlot ?? '') ?? -1; // Ensure slot is an int
+    final String? userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (name.isEmpty || age == null || slot == -1) {
       setState(() {
@@ -391,6 +393,7 @@ class AddPatientModalState extends State<AddPatientModal> {
           age: age,
           gender: selectedGender,
           slot: slot,
+          userId: userId,
         );
 
         await firestoreService.addPatient(patient);
